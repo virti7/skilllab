@@ -1,0 +1,136 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String
+  name        String
+  role        Role     @default(STUDENT)
+  instituteId String?
+  createdAt   DateTime @default(now())
+
+  institute     Institute?     @relation(fields: [instituteId], references: [id])
+  batchStudents BatchStudent[]
+  results       Result[]
+  answers       Answer[]
+
+  @@map("users")
+}
+
+model Institute {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users   User[]
+  batches Batch[]
+  tests   Test[]
+
+  @@map("institutes")
+}
+
+model Batch {
+  id          String   @id @default(uuid())
+  name        String
+  inviteCode  String   @unique
+  instituteId String
+  createdAt   DateTime @default(now())
+
+  institute     Institute      @relation(fields: [instituteId], references: [id])
+  batchStudents BatchStudent[]
+  tests         Test[]
+
+  @@map("batches")
+}
+
+model BatchStudent {
+  id       String   @id @default(uuid())
+  batchId  String
+  userId   String
+  joinedAt DateTime @default(now())
+
+  batch Batch @relation(fields: [batchId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([batchId, userId])
+  @@map("batch_students")
+}
+
+model Test {
+  id          String   @id @default(uuid())
+  title       String
+  duration    Int      @default(30)
+  instituteId String
+  batchId     String?
+  createdAt   DateTime @default(now())
+
+  institute Institute  @relation(fields: [instituteId], references: [id])
+  batch     Batch?     @relation(fields: [batchId], references: [id])
+  questions Question[]
+  results   Result[]
+
+  @@map("tests")
+}
+
+model Question {
+  id            String   @id @default(uuid())
+  testId        String
+  questionText  String
+  optionA       String
+  optionB       String
+  optionC       String
+  optionD       String
+  correctOption String
+  createdAt     DateTime @default(now())
+
+  test    Test     @relation(fields: [testId], references: [id])
+  answers Answer[]
+
+  @@map("questions")
+}
+
+model Result {
+  id          String   @id @default(uuid())
+  userId      String
+  testId      String
+  score       Int
+  totalMarks  Int
+  percentage  Float
+  submittedAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id])
+  test    Test     @relation(fields: [testId], references: [id])
+  answers Answer[]
+
+  @@unique([userId, testId])
+  @@map("results")
+}
+
+model Answer {
+  id             String  @id @default(uuid())
+  resultId       String
+  questionId     String
+  selectedOption String
+  isCorrect      Boolean
+  userId         String
+
+  result   Result   @relation(fields: [resultId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@map("answers")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  STUDENT
+}
