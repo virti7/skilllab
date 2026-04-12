@@ -67,7 +67,7 @@ model Test {
   instituteId String
   batchId     String?
   expiryDate  DateTime?
-  createdBy   String?
+  created_by   String?
   createdAt   DateTime   @default(now())
   questions   Question[]
   results     Result[]

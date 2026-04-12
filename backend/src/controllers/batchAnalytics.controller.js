@@ -5,6 +5,9 @@ export async function getBatchAnalytics(req, res) {
     const { id } = req.params;
     const { instituteId, role } = req.user;
 
+    console.log('Batch ID:', id);
+    console.log('User Institute:', instituteId, 'Role:', role);
+
     const batch = await prisma.batch.findUnique({
       where: { id },
       include: {
@@ -35,8 +38,11 @@ export async function getBatchAnalytics(req, res) {
     });
 
     if (!batch) {
+      console.log('Batch not found for ID:', id);
       return res.status(404).json({ error: 'Batch not found' });
     }
+
+    console.log('Batch Data:', { id: batch.id, name: batch.name, studentCount: batch.batchStudents?.length || 0, testCount: batch.tests?.length || 0 });
 
     if (role === 'ADMIN' && batch.instituteId !== instituteId) {
       return res.status(403).json({ error: 'Access denied' });
@@ -45,11 +51,55 @@ export async function getBatchAnalytics(req, res) {
     const students = batch.batchStudents.map((bs) => bs.user);
     const tests = batch.tests;
 
+    console.log('Students:', students.length, 'Tests:', tests.length);
+
+    if (students.length === 0 && tests.length === 0) {
+      console.log('Empty batch - no students or tests');
+      return res.json({
+        batch: {
+          id: batch.id,
+          name: batch.name,
+          inviteCode: batch.inviteCode,
+          createdAt: batch.createdAt,
+        },
+        summary: {
+          totalStudents: 0,
+          totalTests: 0,
+          totalAttempts: 0,
+          avgBatchScore: null,
+        },
+        students: [],
+        tests: [],
+        leaderboard: [],
+        trends: { testScoresOverTime: [] },
+        insights: {
+          topPerformer: null,
+          weakStudentsCount: 0,
+          weakStudents: [],
+          bestTest: null,
+          worstTest: null,
+        },
+        scoreDistribution: {
+          excellent: 0,
+          average: 0,
+          needsImprovement: 0,
+          noAttempts: 0,
+        },
+      });
+    }
+
+    const studentIds = students.map((s) => s.id);
+    const testIds = tests.map((t) => t.id);
+
+    const resultWhereClause = {
+      userId: { in: studentIds },
+    };
+    if (testIds.length > 0) {
+      resultWhereClause.testId = { in: testIds };
+    }
+
     const studentResults = await prisma.result.findMany({
-      where: {
-        userId: { in: students.map((s) => s.id) },
-        testId: { in: tests.map((t) => t.id) },
-      },
+      where: resultWhereClause,
       include: {
         test: {
           select: {
@@ -191,6 +241,7 @@ export async function getBatchAnalytics(req, res) {
     });
   } catch (err) {
     console.error('Get batch analytics error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Error stack:', err.stack);
+    return res.status(500).json({ error: 'Failed to load analytics' });
   }
 }
