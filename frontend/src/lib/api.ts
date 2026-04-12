@@ -381,6 +381,36 @@ export const dashboardApi = {
   student: () => request<StudentDashboardData>('GET', '/dashboard/student'),
 };
 
+// ─── Admin Students ─────────────────────────────────────
+
+export interface AdminStudent {
+  id: string;
+  name: string;
+  email: string;
+  batchName: string | null;
+  totalTests: number;
+  avgScore: number;
+  lastActive: string | null;
+}
+
+export interface StudentAnalyticsData {
+  id: string;
+  name: string;
+  email: string;
+  batch: string;
+  totalTests: number;
+  avgScore: number;
+  rank: number;
+  performanceTrend: { test: string; score: number }[];
+  topicBreakdown: { topic: string; percentage: number }[];
+  weakTopics: string[];
+}
+
+export const adminApi = {
+  getStudents: () => request<AdminStudent[]>('GET', '/dashboard/students'),
+  getStudentAnalytics: (studentId: string) => request<StudentAnalyticsData>('GET', `/dashboard/student/${studentId}`),
+};
+
 // ─── AI Generation ────────────────────────────────────────
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
@@ -519,6 +549,42 @@ export interface TestResultData {
 
 export const testResultApi = {
   get: (testId: string) => request<TestResultData>('GET', `/test/${testId}/result`),
+};
+
+// ─── Student Analytics ───────────────────────────────
+
+export interface StudentAnalyticsData {
+  testsTaken: number;
+  avgScore: number;
+  rank: number | null;
+  completion: number;
+  passedCount: number;
+  recentTests: Array<{
+    testId: string;
+    score: number;
+    percentage: number;
+    submittedAt: string;
+  }>;
+}
+
+export const studentApi = {
+  getAnalytics: () => request<StudentAnalyticsData>('GET', '/student/analytics'),
+  getTopicBreakdown: () => request<{ topics: Array<{ topic: string; total: number; correct: number; percentage: number }> }>('GET', '/student/topic-breakdown'),
+  getCompletedTestsAnalytics: () => request<{
+    tests: Array<{
+      testId: string;
+      title: string;
+      batchName: string | null;
+      score: number;
+      total: number;
+      correct: number;
+      wrong: number;
+      percentage: number;
+      submittedAt: string;
+      topics: Array<{ topic: string; total: number; correct: number; percentage: number }>;
+      weakTopics: string[];
+    }>;
+  }>('GET', '/student/completed-tests-analytics'),
 };
 
 // ─── Token helpers ────────────────────────────────────────

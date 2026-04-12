@@ -28,7 +28,6 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Merge API data with dummy fallbacks for display
   const statsCards = data
     ? [
         { title: "Total Students", value: String(data.stats.totalStudents), change: "", icon: "👨‍🎓" },

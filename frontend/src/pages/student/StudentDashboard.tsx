@@ -15,7 +15,7 @@ import {
 } from "recharts";
 import jsPDF from "jspdf";
 import { useEffect, useState } from "react";
-import { dashboardApi, StudentDashboardData } from "@/lib/api";
+import { dashboardApi, StudentDashboardData, studentApi } from "@/lib/api";
 
 function StatCard({
   icon: Icon,
@@ -106,6 +106,8 @@ export default function StudentDashboard() {
   const [data, setData] = useState<StudentDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [topicData, setTopicData] = useState<Array<{ topic: string; total: number; correct: number; percentage: number }>>([]);
+  const [topicLoading, setTopicLoading] = useState(true);
 
   useEffect(() => {
     dashboardApi
@@ -120,6 +122,14 @@ export default function StudentDashboard() {
         setData(null);
       })
       .finally(() => setLoading(false));
+
+    studentApi.getTopicBreakdown()
+      .then((res) => {
+        console.log("Topics:", res.topics);
+        setTopicData(res.topics || []);
+      })
+      .catch((err) => console.error("Topic breakdown error:", err))
+      .finally(() => setTopicLoading(false));
   }, []);
 
   if (loading) {
@@ -374,29 +384,38 @@ export default function StudentDashboard() {
                     </h3>
                   </div>
                   <div className="space-y-4">
-                    {topicBreakdown.map((t, i) => (
-                      <div key={t.topic} className="group">
+                    {(topicLoading ? topicBreakdown : topicData).map((t, i) => {
+                      const percentage = topicLoading ? t.score : t.percentage;
+                      const getColor = (pct: number) => {
+                        if (pct >= 75) return "text-success";
+                        if (pct >= 50) return "text-warning";
+                        return "text-destructive";
+                      };
+                      const getBarColor = (pct: number) => {
+                        if (pct >= 75) return "#22c55e";
+                        if (pct >= 50) return "#f59e0b";
+                        return "#ef4444";
+                      };
+                      return (
+                      <div key={topicLoading ? t.topic : t.topic} className="group">
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-sm text-foreground font-medium">{t.topic}</span>
-                          <span
-                            className="text-sm font-bold"
-                            style={{ color: t.color }}
-                          >
-                            {t.score}%
+                          <span className="text-sm font-bold" style={{ color: getColor(percentage) }}>
+                            {percentage}%
                           </span>
                         </div>
                         <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all duration-500 ease-out"
                             style={{
-                              width: `${t.score}%`,
-                              backgroundColor: t.color,
+                              width: `${percentage}%`,
+                              backgroundColor: getBarColor(percentage),
                               transitionDelay: `${i * 100}ms`
                             }}
                           />
                         </div>
                       </div>
-                    ))}
+                    );})}
                   </div>
                 </div>
               </div>

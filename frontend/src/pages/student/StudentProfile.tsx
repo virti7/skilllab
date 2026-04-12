@@ -1,7 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { performanceCards } from "@/data/dummy";
-import { batchApi, resultApi, Batch, ResultSummary } from "@/lib/api";
+import { batchApi, resultApi, Batch, ResultSummary, studentApi, StudentAnalyticsData } from "@/lib/api";
 import { useState, useEffect } from "react";
 import { Loader2, Users, BookOpen } from "lucide-react";
 
@@ -11,6 +11,8 @@ export default function StudentProfile() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [results, setResults] = useState<ResultSummary[]>([]);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [analytics, setAnalytics] = useState<StudentAnalyticsData | null>(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
   // Join batch state
   const [inviteCode, setInviteCode] = useState("");
@@ -27,6 +29,14 @@ export default function StudentProfile() {
       setResults(r);
       setProfileLoading(false);
     });
+
+    studentApi.getAnalytics()
+      .then((data) => {
+        console.log("Student Analytics:", data);
+        setAnalytics(data);
+      })
+      .catch((err) => console.error("Analytics error:", err))
+      .finally(() => setAnalyticsLoading(false));
   }, []);
 
   const avgScore =
@@ -55,14 +65,25 @@ export default function StudentProfile() {
     }
   }
 
-  const statsCards = results.length > 0
-    ? [
+  const statsCards = (() => {
+    if (analytics && !analyticsLoading) {
+      return [
+        { title: "Tests Taken", value: String(analytics?.testsTaken ?? 0), change: "", icon: "📝" },
+        { title: "Average Score", value: `${analytics?.avgScore ?? 0}%`, change: "", icon: "📈" },
+        { title: "Batches Joined", value: String(batches.length), change: "", icon: "👥" },
+        { title: "Passed", value: String(analytics?.passedCount ?? 0), change: "", icon: "✅" },
+      ];
+    }
+    if (results.length > 0) {
+      return [
         { title: "Tests Taken", value: String(results.length), change: "", icon: "📝" },
         { title: "Average Score", value: `${avgScore}%`, change: "", icon: "📈" },
         { title: "Batches Joined", value: String(batches.length), change: "", icon: "👥" },
         { title: "Passed", value: String(results.filter((r) => r.passed).length), change: "", icon: "✅" },
-      ]
-    : performanceCards;
+      ];
+    }
+    return performanceCards;
+  })();
 
   return (
     <AppLayout>

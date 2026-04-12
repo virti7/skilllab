@@ -14,6 +14,7 @@ import dashboardRoutes from './routes/dashboard.routes.js';
 import aiRoutes from './routes/ai.routes.js';
 import testAnalyticsRoutes from './routes/testAnalytics.routes.js';
 import testResultRoutes from './routes/testResult.routes.js';
+import studentRoutes from './routes/student.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -36,6 +37,7 @@ app.use('/api/batch', batchRoutes);
 app.use('/api/test', testRoutes);
 app.use('/api/test', testAnalyticsRoutes);
 app.use('/api/test', testResultRoutes);
+app.use('/api/student', studentRoutes);
 app.use('/api/result', resultRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/dashboard', dashboardRoutes);

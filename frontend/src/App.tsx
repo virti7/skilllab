@@ -22,6 +22,7 @@ import BatchAnalytics from "./pages/admin/BatchAnalytics";
 import AdminStudents from "./pages/admin/Students";
 import AdminTests from "./pages/admin/AdminTests";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
+import StudentAnalytics from "./pages/admin/StudentAnalytics";
 import Leaderboard from "./pages/Leaderboard";
 
 // Student
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/admin/batches" element={<Admin><Batches /></Admin>} />
             <Route path="/admin/batch/:id" element={<Admin><BatchAnalytics /></Admin>} />
             <Route path="/admin/students" element={<Admin><AdminStudents /></Admin>} />
+            <Route path="/admin/student/:id" element={<Admin><StudentAnalytics /></Admin>} />
             <Route path="/admin/tests" element={<Admin><AdminTests /></Admin>} />
             <Route path="/admin/leaderboard" element={<Admin><Leaderboard /></Admin>} />
             <Route path="/admin/analytics" element={<Admin><AdminAnalytics /></Admin>} />

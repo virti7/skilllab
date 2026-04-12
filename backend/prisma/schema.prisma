@@ -8,19 +8,35 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  STUDENT
+}
+
+// =============================================================================
+// MODELS
+// =============================================================================
+
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
   password      String
   name          String
   role          Role           @default(STUDENT)
-  instituteId   String?
+  instituteId  String?
   createdAt     DateTime       @default(now())
   answers       Answer[]
   batchStudents BatchStudent[]
   results       Result[]
-  institute     Institute?     @relation(fields: [instituteId], references: [id])
+  institute    Institute?     @relation(fields: [instituteId], references: [id])
 
+  @@index([email])
+  @@index([instituteId])
   @@map("users")
 }
 
@@ -41,10 +57,13 @@ model Batch {
   inviteCode    String         @unique
   instituteId   String
   createdAt     DateTime       @default(now())
+
   batchStudents BatchStudent[]
+
   institute     Institute      @relation(fields: [instituteId], references: [id])
   tests         Test[]
 
+  @@index([instituteId])
   @@map("batches")
 }
 
@@ -53,59 +72,71 @@ model BatchStudent {
   batchId  String
   userId   String
   joinedAt DateTime @default(now())
-  batch    Batch    @relation(fields: [batchId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
+  batch    Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([batchId, userId])
+  @@index([userId])
+  @@index([batchId])
   @@map("batch_students")
 }
 
 model Test {
-  id          String     @id @default(uuid())
-  title       String
-  duration    Int        @default(30)
+  id           String      @id @default(uuid())
+  title        String
+  duration    Int         @default(30)
   instituteId String
   batchId     String?
   expiryDate  DateTime?
-  created_by   String?
-  createdAt   DateTime   @default(now())
+  createdBy   String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime    @default(now())
   questions   Question[]
   results     Result[]
-  batch       Batch?     @relation(fields: [batchId], references: [id])
-  institute   Institute  @relation(fields: [instituteId], references: [id])
+  batch       Batch?     @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  institute  Institute   @relation(fields: [instituteId], references: [id], onDelete: Restrict)
 
+  @@index([batchId])
+  @@index([instituteId])
+  @@index([createdAt])
   @@map("tests")
 }
 
 model Question {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   testId        String
-  questionText  String
-  optionA       String
-  optionB       String
-  optionC       String
-  optionD       String
+  questionText String
+  optionA      String
+  optionB      String
+  optionC      String
+  optionD      String
   correctOption String
-  createdAt     DateTime @default(now())
-  answers       Answer[]
-  test          Test     @relation(fields: [testId], references: [id])
+  topic        String?
+  createdAt     DateTime  @default(now())
+  answers      Answer[]
+  test         Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
 
+  @@index([testId])
   @@map("questions")
 }
 
 model Result {
-  id          String   @id @default(uuid())
-  userId      String
-  testId      String
-  score       Int
-  totalMarks  Int
-  percentage  Float
-  submittedAt DateTime @default(now())
-  answers     Answer[]
-  test        Test     @relation(fields: [testId], references: [id])
-  user        User     @relation(fields: [userId], references: [id])
+  id             String   @id @default(uuid())
+  userId         String
+  testId         String
+  score          Int      @default(0)
+  totalMarks     Int      @default(0)
+  totalQuestions Int     @default(0)
+  percentage    Float
+  submittedAt   DateTime @default(now())
+  answers       Answer[]
+  test          Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, testId])
+  @@index([userId])
+  @@index([testId])
+  @@index([userId, testId])
   @@map("results")
 }
 
@@ -116,15 +147,12 @@ model Answer {
   selectedOption String
   isCorrect      Boolean
   userId         String
-  question       Question @relation(fields: [questionId], references: [id])
-  result         Result   @relation(fields: [resultId], references: [id])
-  user           User     @relation(fields: [userId], references: [id])
+  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  result         Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([resultId])
+  @@index([questionId])
+  @@index([userId])
   @@map("answers")
-}
-
-enum Role {
-  SUPER_ADMIN
-  ADMIN
-  STUDENT
 }

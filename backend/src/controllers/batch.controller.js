@@ -51,13 +51,11 @@ export async function joinBatch(req, res) {
       data: { batchId: batch.id, userId },
     });
 
-    // Update user's instituteId if not already set
-    if (!req.user.instituteId) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: { instituteId: batch.instituteId },
-      });
-    }
+    // Always assign student's instituteId from batch for consistency
+    await prisma.user.update({
+      where: { id: userId },
+      data: { instituteId: batch.instituteId },
+    });
 
     return res.json({ message: 'Joined batch successfully', batch });
   } catch (err) {

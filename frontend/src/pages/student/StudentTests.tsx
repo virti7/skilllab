@@ -1,13 +1,28 @@
 import { AppLayout } from "@/components/AppLayout";
-import { testApi, batchApi, TestSummary, Batch } from "@/lib/api";
-import { Link } from "react-router-dom";
+import { testApi, batchApi, studentApi, TestSummary, Batch } from "@/lib/api";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Loader2, BookOpen, Clock, ArrowRight, CheckCircle2, Circle } from "lucide-react";
+import { Loader2, BookOpen, Clock, ArrowRight, CheckCircle2, Circle, TrendingUp, AlertCircle } from "lucide-react";
 
 export default function StudentTests() {
+  const navigate = useNavigate();
   const [tests, setTests] = useState<TestSummary[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [completedAnalytics, setCompletedAnalytics] = useState<Array<{
+    testId: string;
+    title: string;
+    batchName: string | null;
+    score: number;
+    total: number;
+    correct: number;
+    wrong: number;
+    percentage: number;
+    submittedAt: string;
+    topics: Array<{ topic: string; total: number; correct: number; percentage: number }>;
+    weakTopics: string[];
+  }>>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -22,8 +37,17 @@ export default function StudentTests() {
       ]);
       setTests(t);
       setBatches(b);
+
+      studentApi.getCompletedTestsAnalytics()
+        .then((res) => {
+          console.log("Completed analytics:", res.tests);
+          setCompletedAnalytics(res.tests || []);
+        })
+        .catch((err) => console.error("Completed analytics error:", err))
+        .finally(() => setAnalyticsLoading(false));
     } catch (err) {
       console.error('Failed to load tests:', err);
+      setAnalyticsLoading(false);
     } finally {
       setLoading(false);
     }
@@ -134,26 +158,97 @@ export default function StudentTests() {
           {completedTests.length > 0 && (
             <>
               <h3 className="text-lg font-semibold text-foreground mb-4">Completed Tests ({completedTests.length})</h3>
-              <div className="space-y-3">
-                {completedTests.map((test) => (
-                  <div key={test.id} className="flex items-center gap-4 bg-card rounded-2xl p-4 border border-border shadow-sm hover:shadow-md transition-all">
-                    <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-                      <CheckCircle2 className="w-5 h-5 text-success" />
+              <div className="space-y-4">
+                {completedTests.map((test) => {
+                  const analyticsData = completedAnalytics.find(a => a.testId === test.id);
+                  const percentage = analyticsData?.percentage ?? test.result?.percentage ?? 0;
+                  const getScoreColor = (pct: number) => {
+                    if (pct >= 75) return "text-success";
+                    if (pct >= 50) return "text-warning";
+                    return "text-destructive";
+                  };
+                  const getScoreBg = (pct: number) => {
+                    if (pct >= 75) return "bg-success";
+                    if (pct >= 50) return "bg-warning";
+                    return "bg-destructive";
+                  };
+                  return (
+                  <div 
+                    key={test.id} 
+                    className="bg-card rounded-2xl p-4 border border-border shadow-sm hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => navigate(`/student/test-result/${test.id}`)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl ${getScoreBg(percentage)}/10 flex items-center justify-center`}>
+                        <CheckCircle2 className={`w-5 h-5 ${getScoreColor(percentage)}`} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground">{test.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {test.batchName || 'General'} · {test.duration} min
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm font-bold ${getScoreColor(percentage)}`}>{percentage}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          {analyticsData?.correct ?? test.result?.score ?? 0}/{analyticsData?.total ?? test.questionCount}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground">{test.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {test.batchName || 'General'} · {test.duration} min
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-success">{test.result?.percentage ?? 0}%</p>
-                      <p className="text-xs text-muted-foreground">
-                        {test.result?.score ?? 0}/{test.questionCount}
-                      </p>
+
+                    {analyticsData && !analyticsLoading && (
+                      <div className="mt-3 pt-3 border-t border-border">
+                        <div className="flex items-center justify-between text-xs mb-2">
+                          <span className="text-muted-foreground">Correct: <span className="text-success font-medium">{analyticsData.correct}</span></span>
+                          <span className="text-muted-foreground">Wrong: <span className="text-destructive font-medium">{analyticsData.wrong}</span></span>
+                        </div>
+                        
+                        <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden mb-3">
+                          <div 
+                            className="h-full rounded-full transition-all"
+                            style={{ 
+                              width: `${percentage}%`,
+                              backgroundColor: percentage >= 75 ? '#22c55e' : percentage >= 50 ? '#f59e0b' : '#ef4444'
+                            }}
+                          />
+                        </div>
+
+                        {analyticsData.topics && analyticsData.topics.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {analyticsData.topics.slice(0, 3).map((topic) => (
+                              <span 
+                                key={topic.topic}
+                                className={`text-xs px-2 py-0.5 rounded-full ${
+                                  topic.percentage >= 75 
+                                    ? 'bg-success/10 text-success' 
+                                    : topic.percentage >= 50 
+                                    ? 'bg-warning/10 text-warning'
+                                    : 'bg-destructive/10 text-destructive'
+                                }`}
+                              >
+                                {topic.topic}: {topic.percentage}%
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {analyticsData.weakTopics && analyticsData.weakTopics.length > 0 && (
+                          <div className="flex items-center gap-1.5 text-xs text-destructive">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>Weak: {analyticsData.weakTopics.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mt-2 flex items-center justify-end">
+                      <span className="text-xs text-primary font-medium flex items-center gap-1">
+                        View Full Analysis <ArrowRight className="w-3 h-3" />
+                      </span>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}

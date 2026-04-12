@@ -88,13 +88,13 @@ export async function adminDashboard(req, res) {
 export async function studentDashboard(req, res) {
   try {
     const { id: userId, instituteId } = req.user;
-
+ 
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
       select: { batchId: true },
     });
     const batchIds = batchStudents.map((bs) => bs.batchId);
-
+ 
     const [results, assignedTests] = await Promise.all([
       prisma.result.findMany({
         where: { userId },
@@ -118,20 +118,20 @@ export async function studentDashboard(req, res) {
         orderBy: { createdAt: 'desc' },
       }),
     ]);
-
+ 
     const pendingTests = assignedTests.filter((t) => t.results.length === 0);
     const completedTests = results;
     const avgScore =
       results.length > 0
         ? Math.round(results.reduce((s, r) => s + r.percentage, 0) / results.length)
         : 0;
-
+ 
     // Score trend (last 7 results)
     const scoreTrend = results.slice(0, 7).reverse().map((r, i) => ({
       test: `T${i + 1}`,
       score: r.percentage,
     }));
-
+ 
     // Rank among institute students
     const rankData = await prisma.$queryRaw`
       SELECT rank FROM (
@@ -146,9 +146,9 @@ export async function studentDashboard(req, res) {
         GROUP BY u.id
       ) ranked WHERE id = ${userId}
     `;
-
+ 
     const batchRank = rankData[0]?.rank ? Number(rankData[0].rank) : null;
-
+ 
     return res.json({
       pendingCount: pendingTests.length,
       completedCount: completedTests.length,
@@ -167,6 +167,233 @@ export async function studentDashboard(req, res) {
     });
   } catch (err) {
     console.error('Student dashboard error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// GET /api/admin/students
+export async function getAdminStudents(req, res) {
+  try {
+    const { instituteId } = req.user;
+
+    // Step 1: Get all batches of admin's institute
+    const batches = await prisma.batch.findMany({
+      where: { instituteId },
+      select: { id: true },
+    });
+
+    const batchIds = batches.map((b) => b.id);
+
+    if (batchIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Step 2: Get all students from batch_students table
+    const batchStudents = await prisma.batchStudent.findMany({
+      where: { batchId: { in: batchIds } },
+      include: {
+        user: {
+          include: {
+            results: {
+              select: { percentage: true, submittedAt: true },
+            },
+          },
+        },
+        batch: { select: { name: true } },
+      },
+    });
+
+    // Step 3: Transform with Map to avoid duplicates
+    const studentsMap = new Map();
+
+    batchStudents.forEach((bs) => {
+      const user = bs.user;
+
+      if (!studentsMap.has(user.id)) {
+        const totalTests = user.results.length;
+        const avgScore =
+          totalTests > 0
+            ? Math.round(
+                user.results.reduce((acc, r) => acc + r.percentage, 0) /
+                  totalTests
+              )
+            : 0;
+
+        const lastActive =
+          user.results[0]?.submittedAt || user.createdAt;
+
+        studentsMap.set(user.id, {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          batchName: bs.batch.name,
+          totalTests,
+          avgScore,
+          lastActive: lastActive ? lastActive.toISOString() : null,
+        });
+      }
+    });
+
+    const students = Array.from(studentsMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+
+    return res.json(students);
+  } catch (err) {
+    console.error('Get admin students error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// GET /api/admin/student/:id
+export async function getStudentAnalytics(req, res) {
+  try {
+    const { id: studentId } = req.params;
+    const { id: adminId, role, instituteId } = req.user;
+
+    // Check role - admin or super_admin only
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Access denied. Admin role required.' });
+    }
+
+    console.log('Admin request:', { adminId, role, instituteId });
+    console.log('Fetch student:', studentId);
+
+    const student = await prisma.user.findUnique({
+      where: { id: studentId },
+      include: {
+        results: {
+          include: {
+            test: { select: { title: true } },
+            answers: {
+              include: {
+                question: { select: { topic: true } },
+              },
+            },
+          },
+          orderBy: { submittedAt: 'asc' },
+        },
+        batchStudents: {
+          include: {
+            batch: { select: { id: true, name: true, instituteId: true } },
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    console.log('Student data:', {
+      id: student.id,
+      name: student.name,
+      instituteId: student.instituteId,
+      batches: student.batchStudents.map(bs => ({ batchId: bs.batch.id, instituteId: bs.batch.instituteId }))
+    });
+
+    // Verify student belongs to same institute (via user.instituteId OR batch.instituteId)
+    const studentBatchInstituteIds = student.batchStudents.map(bs => bs.batch.instituteId);
+    const belongsToInstitute =
+      (student.instituteId && student.instituteId === instituteId) ||
+      studentBatchInstituteIds.includes(instituteId);
+
+    if (!belongsToInstitute) {
+      console.log('Access denied - student not in admin institute');
+      return res.status(403).json({ error: 'Unauthorized access to this student' });
+    }
+
+    const totalTests = student.results.length;
+    const avgScore =
+      totalTests > 0
+        ? Math.round(student.results.reduce((s, r) => s + r.percentage, 0) / totalTests)
+        : 0;
+
+    // Calculate rank using batch-based approach (same as admin students list)
+    const batches = await prisma.batch.findMany({
+      where: { instituteId },
+      select: { id: true },
+    });
+    const batchIds = batches.map(b => b.id);
+
+    let allStudents = [];
+    if (batchIds.length > 0) {
+      const batchStudents = await prisma.batchStudent.findMany({
+        where: { batchId: { in: batchIds } },
+        include: {
+          user: {
+            include: {
+              results: { select: { percentage: true } },
+            },
+          },
+        },
+      });
+
+      const studentMap = new Map();
+      batchStudents.forEach(bs => {
+        if (!studentMap.has(bs.user.id)) {
+          studentMap.set(bs.user.id, bs.user);
+        }
+      });
+      allStudents = Array.from(studentMap.values());
+    }
+
+    const rankedStudents = allStudents
+      .map((s) => ({
+        id: s.id,
+        avgScore: s.results.length > 0
+          ? Math.round(s.results.reduce((sum, r) => sum + r.percentage, 0) / s.results.length)
+          : 0,
+      }))
+      .sort((a, b) => b.avgScore - a.avgScore);
+
+    const rank = rankedStudents.findIndex((s) => s.id === studentId) + 1;
+
+    // Topic breakdown
+    const topicStats = {};
+    student.results.forEach((result) => {
+      result.answers.forEach((answer) => {
+        const topic = answer.question?.topic || 'General';
+        if (!topicStats[topic]) {
+          topicStats[topic] = { total: 0, correct: 0 };
+        }
+        topicStats[topic].total++;
+        if (answer.isCorrect) {
+          topicStats[topic].correct++;
+        }
+      });
+    });
+
+    const topicBreakdown = Object.entries(topicStats).map(([topic, stats]) => ({
+      topic,
+      percentage: Math.round((stats.correct / stats.total) * 100),
+    }));
+
+    // Weak topics (< 60%)
+    const weakTopics = topicBreakdown
+      .filter((t) => t.percentage < 60)
+      .map((t) => t.topic);
+
+    // Performance trend
+    const performanceTrend = student.results.map((r, i) => ({
+      test: `T${i + 1}`,
+      score: r.percentage,
+    }));
+
+    return res.json({
+      id: student.id,
+      name: student.name,
+      email: student.email,
+      batch: student.batchStudents[0]?.batch?.name || 'Not Assigned',
+      totalTests,
+      avgScore,
+      rank,
+      performanceTrend,
+      topicBreakdown,
+      weakTopics,
+    });
+  } catch (err) {
+    console.error('Get student analytics error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
