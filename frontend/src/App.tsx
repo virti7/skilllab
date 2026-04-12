@@ -30,6 +30,7 @@ import StudentTests from "./pages/student/StudentTests";
 import StudentProfile from "./pages/student/StudentProfile";
 import StudentCourseDetail from "./pages/student/StudentCourseDetail";
 import TestPage from "./pages/TestPage";
+import TestResultPage from "./pages/student/TestResultPage";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,7 @@ const App = () => (
             <Route path="/student/profile" element={<Stu><StudentProfile /></Stu>} />
             <Route path="/student/test-page/:testId" element={<Stu><TestPage /></Stu>} />
             <Route path="/student/test-page" element={<Stu><TestPage /></Stu>} />
+            <Route path="/student/test-result/:testId" element={<Stu><TestResultPage /></Stu>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

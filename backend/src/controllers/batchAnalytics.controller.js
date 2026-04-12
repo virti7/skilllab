@@ -51,6 +51,8 @@ export async function getBatchAnalytics(req, res) {
     const students = batch.batchStudents.map((bs) => bs.user);
     const tests = batch.tests;
 
+    console.log('=== BATCH ANALYTICS ===');
+    console.log('Batch:', batch.name);
     console.log('Students:', students.length, 'Tests:', tests.length);
 
     if (students.length === 0 && tests.length === 0) {

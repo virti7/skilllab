@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { testQuestions, testQuestionBank } from "@/data/dummy";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Clock, ArrowLeft, CheckCircle2, XCircle, Download, Loader2 } from "lucide-react";
+import { Clock, ArrowLeft, Download, Loader2, CheckCircle, XCircle } from "lucide-react";
 import jsPDF from "jspdf";
 import { testApi, TestFull, SubmitResult } from "@/lib/api";
 
@@ -14,8 +14,6 @@ interface LocalQuestion {
   optionB?: string;
   optionC?: string;
   optionD?: string;
-  correct?: number;
-  correctOption?: string;
 }
 
 function getOptions(q: LocalQuestion): string[] {
@@ -27,33 +25,27 @@ function getQuestionText(q: LocalQuestion): string {
   return q.question ?? q.questionText ?? "";
 }
 
-function getCorrectIndex(q: LocalQuestion): number {
-  if (q.correct !== undefined) return q.correct;
-  const map: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
-  return q.correctOption ? (map[q.correctOption] ?? 0) : 0;
-}
-
 const OPTION_LETTERS = ["A", "B", "C", "D"] as const;
 
 export default function TestPage() {
   const { testId } = useParams();
   const navigate = useNavigate();
 
-  // API state
+  console.log("TestPage - testId:", testId);
+
   const [apiTest, setApiTest] = useState<TestFull | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [submitResult, setSubmitResult] = useState<SubmitResult | null>(null);
+  const [showResult, setShowResult] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Quiz state
   const [current, setCurrent] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitted, setSubmitted] = useState(false);
 
-  // Resolve questions: API > dummy bank > default
   const questions: LocalQuestion[] = (() => {
     if (apiTest?.questions?.length) {
       return apiTest.questions;
@@ -65,20 +57,16 @@ export default function TestPage() {
 
   const durationMinutes = apiTest?.duration ?? questions.length * 2;
 
-  // Fetch test from API
   useEffect(() => {
     if (!testId) {
       setFetchLoading(false);
       return;
     }
-    // Check if it's a numeric dummy ID
     const numId = Number(testId);
     if (!isNaN(numId) && numId < 1_000_000) {
-      // Dummy/local test
       setFetchLoading(false);
       return;
     }
-    // Real UUID — fetch from API
     testApi
       .getById(testId)
       .then((test) => {
@@ -90,7 +78,6 @@ export default function TestPage() {
       .finally(() => setFetchLoading(false));
   }, [testId]);
 
-  // Init timer & answers after questions load
   useEffect(() => {
     if (questions.length > 0 && answers.length === 0) {
       setAnswers(Array(questions.length).fill(null));
@@ -98,19 +85,17 @@ export default function TestPage() {
     }
   }, [questions.length, durationMinutes]);
 
-  // Countdown timer
   useEffect(() => {
     if (submitted || timeLeft <= 0) return;
     const t = setInterval(() => setTimeLeft((p) => (p <= 0 ? 0 : p - 1)), 1000);
     return () => clearInterval(t);
   }, [submitted, timeLeft]);
 
-  // Auto-submit when timer hits 0
   useEffect(() => {
-    if (timeLeft === 0 && !submitted && answers.length > 0) {
-      handleSubmit();
+    if (timeLeft === 0 && !submitted && answers.length > 0 && !submitting) {
+      setSubmitted(true);
     }
-  }, [timeLeft]);
+  }, [timeLeft, submitted, answers.length, submitting]);
 
   const mins = Math.floor(timeLeft / 60);
   const secs = timeLeft % 60;
@@ -124,45 +109,47 @@ export default function TestPage() {
     setAnswers(newAns);
   };
 
-  // Local score calculation (for dummy tests or after API submit returns)
-  const localScore = submitted
-    ? answers.reduce(
-        (acc, a, i) => acc + (a === getCorrectIndex(questions[i]) ? 1 : 0),
-        0
-      )
-    : 0;
-
-  const finalScore = submitResult?.score ?? localScore;
-  const finalTotal = submitResult?.totalMarks ?? questions.length;
-  const percentage = submitResult?.percentage ?? Math.round((localScore / questions.length) * 100);
-  const passed = percentage >= 50;
-
   const handleSubmit = useCallback(async () => {
     if (submitted) return;
     setSubmitted(true);
 
-    // If we have an API test, submit to backend
     if (apiTest && testId) {
       setSubmitting(true);
       try {
         const answerPayload = answers.map((selectedIdx, i) => ({
-          questionId: apiTest.questions[i].id,
-          selectedOption:
-            selectedIdx !== null ? OPTION_LETTERS[selectedIdx] : "",
+          questionId: apiTest.questions?.[i]?.id ?? "",
+          selectedOption: selectedIdx !== null ? OPTION_LETTERS[selectedIdx] : "",
         }));
+        console.log("Submitting test with answers:", answerPayload);
         const result = await testApi.submit(testId, answerPayload);
+        console.log("Submit result:", result);
         setSubmitResult(result);
+        setShowResult(true);
       } catch (err) {
         console.error("Submit error:", err);
+        alert("Failed to submit test. Please try again.");
       } finally {
         setSubmitting(false);
       }
+    } else {
+      navigate("/student");
     }
-  }, [submitted, apiTest, testId, answers]);
+  }, [submitted, apiTest, testId, answers, navigate]);
+
+  const handleCloseResult = () => {
+    setShowResult(false);
+    if (testId) {
+      navigate(`/student/test-result/${testId}`);
+    } else {
+      navigate("/student");
+    }
+  };
 
   const downloadPDF = () => {
+    if (!submitResult) return;
     const doc = new jsPDF();
     const pw = doc.internal.pageSize.getWidth();
+    const passed = submitResult.percentage >= 50;
 
     doc.setFillColor(99, 102, 241);
     doc.rect(0, 0, pw, 40, "F");
@@ -177,40 +164,14 @@ export default function TestPage() {
     doc.text("Performance Summary", 20, 55);
     doc.setFontSize(36);
     doc.setTextColor(passed ? 34 : 220, passed ? 139 : 53, passed ? 34 : 69);
-    doc.text(`${percentage}%`, pw / 2, 80, { align: "center" });
+    doc.text(`${submitResult.percentage}%`, pw / 2, 80, { align: "center" });
     doc.setFontSize(12);
     doc.setTextColor(100, 100, 100);
-    doc.text(`Score: ${finalScore} / ${finalTotal}`, pw / 2, 90, { align: "center" });
+    doc.text(`Score: ${submitResult.score} / ${submitResult.totalQuestions}`, pw / 2, 90, { align: "center" });
     doc.text(`Status: ${passed ? "PASSED" : "NEEDS IMPROVEMENT"}`, pw / 2, 98, { align: "center" });
 
     doc.setDrawColor(200, 200, 200);
     doc.line(20, 105, pw - 20, 105);
-
-    doc.setFontSize(13);
-    doc.setTextColor(30, 30, 30);
-    doc.text("Question-wise Analysis", 20, 115);
-
-    let y = 125;
-    questions.forEach((q, i) => {
-      if (y > 270) { doc.addPage(); y = 20; }
-      const isCorrect = answers[i] === getCorrectIndex(q);
-      const opts = getOptions(q);
-      doc.setFontSize(10);
-      doc.setTextColor(30, 30, 30);
-      doc.text(`Q${i + 1}: ${getQuestionText(q)}`, 20, y, { maxWidth: pw - 40 });
-      y += 6;
-      doc.setFontSize(9);
-      doc.setTextColor(isCorrect ? 34 : 220, isCorrect ? 139 : 53, isCorrect ? 34 : 69);
-      const yourAns = answers[i] !== null ? opts[answers[i]!] : "Not answered";
-      doc.text(`Your answer: ${yourAns} ${isCorrect ? "✓" : "✗"}`, 24, y);
-      y += 5;
-      if (!isCorrect) {
-        doc.setTextColor(34, 139, 34);
-        doc.text(`Correct: ${opts[getCorrectIndex(q)]}`, 24, y);
-        y += 5;
-      }
-      y += 4;
-    });
 
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
@@ -220,10 +181,8 @@ export default function TestPage() {
       doc.internal.pageSize.getHeight() - 10,
       { align: "center" }
     );
-    doc.save(`SkillLab_Result_${percentage}pct.pdf`);
+    doc.save(`SkillLab_Result_${submitResult.percentage}pct.pdf`);
   };
-
-  // ── Loading / Error ──────────────────────────────────────────────────────
 
   if (fetchLoading) {
     return (
@@ -244,124 +203,111 @@ export default function TestPage() {
     );
   }
 
-  // ── Result Screen ────────────────────────────────────────────────────────
-
-  if (submitted) {
+  if (!questions || questions.length === 0) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-2xl mx-auto">
-          {submitting ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="text-center">
-                <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Saving your result…</p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-8">
+        <p className="text-muted-foreground">No questions available for this test.</p>
+        <Link to="/student/tests" className="text-sm text-primary underline">
+          Back to Tests
+        </Link>
+      </div>
+    );
+  }
+
+  // Result Modal
+  if (showResult && submitResult) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-card rounded-2xl p-8 shadow-lg border border-border max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="text-center mb-6">
+            <div className="text-6xl mb-3">{submitResult.passed ? "🎉" : "💪"}</div>
+            <h2 className="text-2xl font-bold text-foreground">
+              {submitResult.passed ? "Great job!" : "Keep practicing!"}
+            </h2>
+            <p className="text-muted-foreground">
+              {submitResult.passed
+                ? "You've passed the test successfully."
+                : "Review your answers and try again."}
+            </p>
+          </div>
+
+          <div className={`text-5xl font-bold text-center mb-2 ${
+            submitResult.passed ? "text-success" : "text-destructive"
+          }`}>
+            {submitResult.percentage}%
+          </div>
+          <p className="text-center text-muted-foreground mb-6">
+            {submitResult.score} correct out of {submitResult.totalQuestions} questions
+          </p>
+
+          <div className="flex gap-3 justify-center mb-6">
+            <button
+              onClick={downloadPDF}
+              className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              <Download className="w-4 h-4" /> Download PDF
+            </button>
+          </div>
+
+          {submitResult.correctAnswers && submitResult.correctAnswers.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-success" />
+                Correct Answers ({submitResult.correctAnswers.length})
+              </h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {submitResult.correctAnswers.map((item, i) => (
+                  <div key={i} className="bg-success/10 rounded-lg p-3 text-sm">
+                    <p className="font-medium text-foreground">Q{i + 1}: {item.question}</p>
+                    <p className="text-success text-xs">Your answer: {item.yourAnswer}</p>
+                  </div>
+                ))}
               </div>
             </div>
-          ) : (
-            <>
-              {/* Score card */}
-              <div className="bg-card rounded-2xl p-8 shadow-lg border border-border text-center mb-6">
-                <div className="text-5xl mb-3">{passed ? "🎉" : "💪"}</div>
-                <h2 className="text-2xl font-bold text-foreground mb-1">
-                  {passed ? "Great job!" : "Keep practicing!"}
-                </h2>
-                <p className="text-muted-foreground mb-4">
-                  {passed
-                    ? "You've passed the test successfully."
-                    : "Review your answers and try again."}
-                </p>
-                <div
-                  className={`text-5xl font-bold mb-2 ${
-                    passed ? "text-success" : "text-destructive"
-                  }`}
-                >
-                  {percentage}%
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {finalScore} correct out of {finalTotal} questions
-                </p>
-                <div className="flex gap-3 justify-center mt-6">
-                  <button
-                    onClick={downloadPDF}
-                    className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
-                  >
-                    <Download className="w-4 h-4" /> Download PDF
-                  </button>
-                  <Link
-                    to="/student/tests"
-                    className="px-5 py-2.5 rounded-xl text-sm font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                  >
-                    Back to Tests
-                  </Link>
-                </div>
-              </div>
-
-              {/* Answer review — only show for dummy questions (API hides correctOption during test) */}
-              {!apiTest && (
-                <>
-                  <h3 className="text-lg font-semibold text-foreground mb-4">
-                    Answer Review
-                  </h3>
-                  <div className="space-y-3">
-                    {questions.map((q, i) => {
-                      const isCorrect = answers[i] === getCorrectIndex(q);
-                      const opts = getOptions(q);
-                      return (
-                        <div
-                          key={String(q.id)}
-                          className={`bg-card rounded-2xl p-5 border shadow-sm ${
-                            isCorrect
-                              ? "border-success/30"
-                              : "border-destructive/30"
-                          }`}
-                        >
-                          <div className="flex items-start gap-3">
-                            {isCorrect ? (
-                              <CheckCircle2 className="w-5 h-5 text-success mt-0.5 shrink-0" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
-                            )}
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-foreground mb-2">
-                                Q{i + 1}. {getQuestionText(q)}
-                              </p>
-                              <div className="space-y-1.5">
-                                {opts.map((opt, j) => (
-                                  <div
-                                    key={j}
-                                    className={`text-xs px-3 py-2 rounded-lg ${
-                                      j === getCorrectIndex(q)
-                                        ? "bg-success/10 text-success font-medium"
-                                        : j === answers[i] && !isCorrect
-                                        ? "bg-destructive/10 text-destructive line-through"
-                                        : "text-muted-foreground"
-                                    }`}
-                                  >
-                                    {String.fromCharCode(65 + j)}. {opt}
-                                    {j === getCorrectIndex(q) && " ✓"}
-                                    {j === answers[i] &&
-                                      j !== getCorrectIndex(q) &&
-                                      " (your answer)"}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </>
           )}
+
+          {submitResult.wrongAnswers && submitResult.wrongAnswers.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-destructive" />
+                Wrong Answers ({submitResult.wrongAnswers.length})
+              </h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {submitResult.wrongAnswers.map((item, i) => (
+                  <div key={i} className="bg-destructive/10 rounded-lg p-3 text-sm">
+                    <p className="font-medium text-foreground">Q{i + 1}: {item.question}</p>
+                    <p className="text-destructive text-xs">Your answer: {item.yourAnswer}</p>
+                    <p className="text-success text-xs">Correct: {item.correctAnswer}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={handleCloseResult}
+            className="w-full py-3 rounded-xl font-medium bg-primary text-primary-foreground hover:opacity-90"
+          >
+            Go to Dashboard
+          </button>
         </div>
       </div>
     );
   }
 
-  // ── Test UI ──────────────────────────────────────────────────────────────
+  // Loading state during submit
+  if (submitted && submitting) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-3" />
+          <p className="text-muted-foreground">Saving your result…</p>
+        </div>
+      </div>
+    );
+  }
 
+  // Test UI
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-card border-b border-border px-8 py-4 flex items-center justify-between">
@@ -384,9 +330,8 @@ export default function TestPage() {
         </div>
       </div>
 
-      {/* Question navigation dots */}
       <div className="px-8 pt-6 flex items-center gap-2 flex-wrap">
-        {questions.map((_, i) => (
+        {questions?.map((_, i) => (
           <button
             key={i}
             onClick={() => {
@@ -406,17 +351,15 @@ export default function TestPage() {
         ))}
       </div>
 
-      {/* Progress */}
       <div className="px-8 pt-4">
         <div className="h-2 bg-secondary rounded-full overflow-hidden">
           <div
             className="h-full bg-primary rounded-full transition-all"
-            style={{ width: `${((current + 1) / questions.length) * 100}%` }}
+            style={{ width: `${((current + 1) / (questions.length || 1)) * 100}%` }}
           />
         </div>
       </div>
 
-      {/* Question */}
       <div className="max-w-2xl mx-auto p-8">
         <div className="bg-card rounded-2xl p-8 shadow-sm border border-border mb-6">
           <p className="text-lg font-semibold text-foreground">
@@ -425,7 +368,7 @@ export default function TestPage() {
         </div>
 
         <div className="space-y-3">
-          {getOptions(q).map((opt, i) => (
+          {getOptions(q)?.map((opt, i) => (
             <button
               key={i}
               onClick={() => selectOption(i)}

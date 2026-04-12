@@ -2,7 +2,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { RightPanel } from "@/components/RightPanel";
 import { topicBreakdown } from "@/data/dummy";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Download, FileText, Loader2, Sparkles, TrendingUp, Award, BookOpen, ArrowRight, Clock, Target, Trophy } from "lucide-react";
 import {
   CartesianGrid,
@@ -10,6 +10,8 @@ import {
   ResponsiveContainer,
   Area,
   AreaChart,
+  XAxis,
+  YAxis,
 } from "recharts";
 import jsPDF from "jspdf";
 import { useEffect, useState } from "react";
@@ -100,16 +102,51 @@ function EmptyChartState() {
 
 export default function StudentDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState<StudentDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     dashboardApi
       .student()
-      .then((d) => setData(d))
-      .catch(() => setData(null))
+      .then((d) => {
+        setData(d);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error("Dashboard error:", err);
+        setError(err.message || "Failed to load dashboard");
+        setData(null);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  if (loading) {
+    return (
+      <AppLayout rightPanel={<RightPanel />}>
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppLayout rightPanel={<RightPanel />}>
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <p className="text-destructive font-medium">Failed to load dashboard</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   const pendingCount = data?.pendingCount ?? 0;
   const completedCount = data?.completedCount ?? 0;
@@ -117,6 +154,11 @@ export default function StudentDashboard() {
   const batchRank = data?.batchRank ?? null;
   const scoreTrend = data?.scoreTrend ?? [];
   const myTests = data?.recentTests ?? [];
+
+  // Ensure scoreTrend has valid data for chart
+  const safeScoreTrend = Array.isArray(scoreTrend) 
+    ? scoreTrend.filter(item => item && typeof item.score === 'number')
+    : [];
 
   const hasData = completedCount > 0 || pendingCount > 0;
   const firstName = user?.name?.split(" ")[0] || "there";
@@ -169,79 +211,70 @@ export default function StudentDashboard() {
 
   return (
     <AppLayout rightPanel={<RightPanel />}>
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+      <div className="mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{getGreeting()},</span>
+              <Sparkles className="w-4 h-4 text-primary" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+              Welcome back, {firstName}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {hasData ? (
+                batchRank ? (
+                  <>You're ranked <span className="text-primary font-semibold">#{batchRank}</span> in your batch. Keep up the great work!</>
+                ) : (
+                  <>You have <span className="text-warning font-semibold">{pendingCount} pending</span> tests waiting for you.</>
+                )
+              ) : (
+                <>Ready to start your learning journey? <span className="text-primary font-medium">Let's go!</span></>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={downloadReport}
+            disabled={!hasData}
+            className="inline-flex items-center gap-2 bg-foreground text-background text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            <Download className="w-4 h-4" />
+            Download Report
+          </button>
+        </div>
+      </div>
+
+      {!hasData ? (
+        <div className="bg-gradient-to-br from-primary/5 via-card to-card rounded-2xl border border-border p-8 text-center">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6">
+            <BookOpen className="w-10 h-10 text-primary" />
+          </div>
+          <h3 className="text-xl font-bold text-foreground mb-2">
+            Join a batch to start learning
+          </h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            You're not enrolled in any batch yet. Contact your administrator or institution to get started with your courses and assessments.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              to="/student/tests"
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-semibold px-6 py-3 rounded-xl hover:bg-primary/90 transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+            >
+              <BookOpen className="w-4 h-4" />
+              Browse Courses
+            </Link>
+            <Link
+              to="/student/leaderboard"
+              className="inline-flex items-center gap-2 border border-border text-foreground text-sm font-medium px-6 py-3 rounded-xl hover:bg-secondary transition-all duration-200"
+            >
+              View Leaderboard
+              <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       ) : (
         <>
-          <div className="mb-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{getGreeting()},</span>
-                  <Sparkles className="w-4 h-4 text-primary" />
-                </div>
-                <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                  Welcome back, {firstName}
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {hasData ? (
-                    batchRank ? (
-                      <>You're ranked <span className="text-primary font-semibold">#{batchRank}</span> in your batch. Keep up the great work!</>
-                    ) : (
-                      <>You have <span className="text-warning font-semibold">{pendingCount} pending</span> tests waiting for you.</>
-                    )
-                  ) : (
-                    <>Ready to start your learning journey? <span className="text-primary font-medium">Let's go!</span></>
-                  )}
-                </p>
-              </div>
-              <button
-                onClick={downloadReport}
-                disabled={!hasData}
-                className="inline-flex items-center gap-2 bg-foreground text-background text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
-              >
-                <Download className="w-4 h-4" />
-                Download Report
-              </button>
-            </div>
-          </div>
-
-          {!hasData ? (
-            <div className="bg-gradient-to-br from-primary/5 via-card to-card rounded-2xl border border-border p-8 text-center">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6">
-                <BookOpen className="w-10 h-10 text-primary" />
-              </div>
-              <h3 className="text-xl font-bold text-foreground mb-2">
-                Join a batch to start learning
-              </h3>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                You're not enrolled in any batch yet. Contact your administrator or institution to get started with your courses and assessments.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link
-                  to="/student/tests"
-                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-semibold px-6 py-3 rounded-xl hover:bg-primary/90 transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  Browse Courses
-                </Link>
-                <Link
-                  to="/student/leaderboard"
-                  className="inline-flex items-center gap-2 border border-border text-foreground text-sm font-medium px-6 py-3 rounded-xl hover:bg-secondary transition-all duration-200"
-                >
-                  View Leaderboard
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <StatCard
                   icon={Target}
                   label="My Avg Score"
@@ -274,18 +307,18 @@ export default function StudentDashboard() {
                       <TrendingUp className="w-4 h-4 text-primary" />
                       Score Trend
                     </h3>
-                    {scoreTrend.length > 0 && (
+                    {safeScoreTrend.length > 0 && (
                       <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-lg">
-                        Last {scoreTrend.length} tests
+                        Last {safeScoreTrend.length} tests
                       </span>
                     )}
                   </div>
-                  {scoreTrend.length === 0 ? (
+                  {safeScoreTrend.length === 0 ? (
                     <EmptyChartState />
                   ) : (
                     <div className="h-52">
                       <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={scoreTrend}>
+                        <AreaChart data={safeScoreTrend}>
                           <defs>
                             <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
@@ -455,11 +488,14 @@ export default function StudentDashboard() {
                               </Link>
                             ) : (
                               <button
-                                onClick={() => downloadTestPdf(test)}
-                                className="inline-flex items-center gap-1.5 bg-foreground text-background text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-foreground/80 transition-all duration-200"
+                                onClick={() => {
+                                  console.log("Clicked Test ID:", test.id);
+                                  navigate(`/student/test-result/${test.id}`);
+                                }}
+                                className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-all duration-200"
                               >
                                 <FileText className="w-3 h-3" />
-                                PDF
+                                View
                               </button>
                             )}
                           </td>
@@ -471,8 +507,6 @@ export default function StudentDashboard() {
               </div>
             </>
           )}
-        </>
-      )}
     </AppLayout>
   );
 }

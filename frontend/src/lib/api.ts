@@ -244,11 +244,25 @@ export interface NewQuestion {
 }
 
 export interface SubmitResult {
+  success?: boolean;
   resultId: string;
   score: number;
-  totalMarks: number;
+  totalQuestions: number;
+  totalMarks?: number;
   percentage: number;
   passed: boolean;
+  correctAnswers?: Array<{
+    questionId: string;
+    question: string;
+    yourAnswer: string;
+    correctAnswer: string;
+  }>;
+  wrongAnswers?: Array<{
+    questionId: string;
+    question: string;
+    yourAnswer: string;
+    correctAnswer: string;
+  }>;
 }
 
 export const testApi = {
@@ -469,6 +483,42 @@ export interface TestAnalyticsResponse {
 
 export const testAnalyticsApi = {
   get: (testId: string) => request<TestAnalyticsResponse>('GET', `/test/${testId}/analytics`),
+};
+
+// ─── Test Result ───────────────────────────────────────
+
+export interface TestResultDetail {
+  questionId: string;
+  question: string;
+  selected: string | null;
+  correct: string;
+  isCorrect: boolean;
+}
+
+export interface TestResultTopicStats {
+  total: number;
+  correct: number;
+  percentage: number;
+}
+
+export interface TestResultData {
+  testId: string;
+  score: number;
+  total: number;
+  percentage: number;
+  submittedAt: string;
+  details: TestResultDetail[];
+  topicStats: Record<string, TestResultTopicStats>;
+  weakTopics: string[];
+  aiFeedback: {
+    strengths: string;
+    weaknesses: string;
+    suggestions: string;
+  };
+}
+
+export const testResultApi = {
+  get: (testId: string) => request<TestResultData>('GET', `/test/${testId}/result`),
 };
 
 // ─── Token helpers ────────────────────────────────────────

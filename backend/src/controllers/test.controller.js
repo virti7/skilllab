@@ -241,6 +241,9 @@ export async function getTestById(req, res) {
     const { testId } = req.params;
     const { id: userId, role } = req.user;
 
+    console.log("=== GET TEST BY ID ===");
+    console.log("testId:", testId);
+
     const test = await prisma.test.findUnique({
       where: { id: testId },
       include: {
@@ -252,29 +255,56 @@ export async function getTestById(req, res) {
             optionB: true,
             optionC: true,
             optionD: true,
-            // Don't expose correctOption to students during the test
           },
         },
-        batch: { select: { name: true } },
+        batch: {
+          select: { name: true },
+        },
       },
     });
 
-    if (!test) return res.status(404).json({ error: 'Test not found' });
+    if (!test) {
+      console.log("Test not found:", testId);
+      return res.status(404).json({ error: "Test not found" });
+    }
 
-    // Check if student already completed this test
-    if (role === 'STUDENT') {
+    console.log("Test found:", {
+      id: test.id,
+      title: test.title,
+      questions: test.questions.length,
+    });
+
+    // 🚫 Prevent re-attempt
+    if (role === "STUDENT") {
       const existingResult = await prisma.result.findUnique({
-        where: { userId_testId: { userId, testId } },
+        where: {
+          userId_testId: {
+            userId,
+            testId,
+          },
+        },
       });
+
       if (existingResult) {
-        return res.status(409).json({ error: 'You have already submitted this test', result: existingResult });
+        return res.status(409).json({
+          error: "You have already submitted this test",
+          result: existingResult,
+        });
       }
     }
 
-    return res.json(test);
+    console.log("=== END GET TEST ===");
+
+    return res.json({
+      ...test,
+      batchName: test.batch?.name || null,
+    });
+
   } catch (err) {
-    console.error('Get test by id error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error("Get test by id error:", err);
+    return res.status(500).json({
+      error: "Internal server error",
+    });
   }
 }
 
@@ -329,6 +359,11 @@ export async function submitTest(req, res) {
     const { testId, answers } = req.body; // answers: [{ questionId, selectedOption }]
     const userId = req.user.id;
 
+    console.log('=== TEST SUBMISSION ===');
+    console.log('User ID:', userId);
+    console.log('Test ID:', testId);
+    console.log('Answers count:', answers?.length);
+
     if (!testId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({ error: 'testId and answers array are required' });
     }
@@ -368,13 +403,30 @@ export async function submitTest(req, res) {
     // Grade the answers
     const questionMap = Object.fromEntries(questions.map((q) => [q.id, q]));
     let score = 0;
+    const correctAnswers = [];
+    const wrongAnswers = [];
 
     const answerData = answers.map((ans) => {
       const question = questionMap[ans.questionId];
       if (!question) return null;
       const isCorrect =
         ans.selectedOption?.toUpperCase() === question.correctOption.toUpperCase();
-      if (isCorrect) score++;
+      if (isCorrect) {
+        score++;
+        correctAnswers.push({
+          questionId: ans.questionId,
+          question: question.questionText || question.question,
+          yourAnswer: ans.selectedOption,
+          correctAnswer: question.correctOption,
+        });
+      } else {
+        wrongAnswers.push({
+          questionId: ans.questionId,
+          question: question.questionText || question.question,
+          yourAnswer: ans.selectedOption || "Not answered",
+          correctAnswer: question.correctOption,
+        });
+      }
       return {
         questionId: ans.questionId,
         selectedOption: ans.selectedOption?.toUpperCase() || '',
@@ -401,15 +453,21 @@ export async function submitTest(req, res) {
         },
         include: { answers: true },
       });
+      console.log('Result saved:', { resultId: newResult.id, score, totalMarks, percentage });
       return newResult;
     });
 
+    console.log('=== SUBMISSION COMPLETE ===');
+
     return res.status(201).json({
+      success: true,
       resultId: result.id,
       score,
-      totalMarks,
+      totalQuestions: totalMarks,
       percentage,
       passed: percentage >= 50,
+      correctAnswers,
+      wrongAnswers,
     });
   } catch (err) {
     console.error('Submit test error:', err);
