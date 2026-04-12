@@ -67,6 +67,9 @@ export async function getUpcomingTests(req, res) {
     });
     const completedIds = completedTestIds.map((r) => r.testId);
 
+    console.log("User ID:", userId);
+    console.log("Batch IDs:", batchIds);
+
     const upcomingTests = await prisma.test.findMany({
       where: {
         OR: [
@@ -74,6 +77,7 @@ export async function getUpcomingTests(req, res) {
           { batchId: null, instituteId: instituteId || undefined },
         ],
         id: { notIn: completedIds },
+        isActive: true,
       },
       include: {
         batch: { select: { name: true } },
@@ -82,6 +86,13 @@ export async function getUpcomingTests(req, res) {
       orderBy: { createdAt: 'asc' },
       take: 10,
     });
+
+    const now = new Date();
+    const validUpcomingTests = upcomingTests.filter((test) => {
+      return !test.expiryDate || new Date(test.expiryDate) > now;
+    });
+
+    console.log("Upcoming tests (after expiry filter):", validUpcomingTests.length);
 
     return res.json(
       upcomingTests.map((t) => ({
@@ -200,12 +211,16 @@ export async function getTests(req, res) {
 
     const batchIds = batchStudents.map((bs) => bs.batchId);
 
+    console.log("User ID:", userId);
+    console.log("Batch IDs:", batchIds);
+
     const tests = await prisma.test.findMany({
       where: {
         OR: [
           { batchId: { in: batchIds } },
           { batchId: null, instituteId: req.user.instituteId || undefined },
         ],
+        isActive: true,
       },
       include: {
         batch: { select: { name: true } },
@@ -218,17 +233,27 @@ export async function getTests(req, res) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return res.json(
-      tests.map((t) => ({
-        id: t.id,
-        title: t.title,
-        duration: t.duration,
-        batchName: t.batch?.name || null,
-        questionCount: t._count.questions,
-        status: t.results.length > 0 ? 'completed' : 'pending',
-        result: t.results[0] || null,
-      }))
-    );
+    console.log("Tests found (before expiry filter):", tests.length);
+
+    const now = new Date();
+    const validTests = tests.filter((test) => {
+      return !test.expiryDate || new Date(test.expiryDate) > now;
+    });
+
+    console.log("Tests found (after expiry filter):", validTests.length);
+
+    const finalTests = validTests.map((t) => ({
+      id: t.id,
+      title: t.title,
+      duration: t.duration,
+      batchName: t.batch?.name || null,
+      questionCount: t._count.questions,
+      status: t.results.length > 0 ? 'completed' : 'pending',
+      result: t.results[0] || null,
+      expiryDate: t.expiryDate,
+    }));
+
+    return res.json(finalTests);
   } catch (err) {
     console.error('Get tests error:', err);
     return res.status(500).json({ error: 'Internal server error' });
