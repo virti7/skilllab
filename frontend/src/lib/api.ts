@@ -68,7 +68,7 @@ export const authApi = {
   me: () => request<AuthUser>('GET', '/auth/me'),
 };
 
-// ─── Batch ───────────────────────────────────────────────
+// ─── Batch ────────────────────────────────────────────────
 
 export interface Batch {
   id: string;
@@ -80,6 +80,23 @@ export interface Batch {
   joinedAt?: string;
 }
 
+export interface BatchStudent {
+  id: string;
+  name: string;
+  email: string;
+  joinedAt: string;
+  batchName: string;
+  testsCompleted: number;
+  avgScore: number | null;
+  totalScore: number;
+}
+
+export interface BatchStudentsResponse {
+  batchId: string;
+  batchName: string;
+  students: BatchStudent[];
+}
+
 export const batchApi = {
   create: (name: string) => request<Batch>('POST', '/batch/create', { name }),
 
@@ -87,7 +104,81 @@ export const batchApi = {
     request<{ message: string; batch: Batch }>('POST', '/batch/join', { inviteCode }),
 
   get: () => request<Batch[]>('GET', '/batch/get'),
+
+  getStudents: (batchId: string) =>
+    request<BatchStudentsResponse>('GET', `/batch/${batchId}/students`),
+
+  getAnalytics: (batchId: string) =>
+    request<BatchAnalyticsResponse>('GET', `/batch/${batchId}/analytics`),
 };
+
+export interface StudentAnalytics {
+  id: string;
+  name: string;
+  email: string;
+  testsAttempted: number;
+  avgScore: number | null;
+  totalScore: number;
+}
+
+export interface TestAnalytics {
+  id: string;
+  title: string;
+  attempts: number;
+  avgScore: number | null;
+}
+
+export interface LeaderboardEntryAnalytics {
+  studentId: string;
+  name: string;
+  totalScore: number;
+  avgScore: number | null;
+  testsAttempted: number;
+  rank: number;
+}
+
+export interface TestTrend {
+  testName: string;
+  avgScore: number;
+}
+
+export interface Insights {
+  topPerformer: { name: string; score: number } | null;
+  weakStudentsCount: number;
+  weakStudents: { name: string; score: number }[];
+  bestTest: { title: string; score: number } | null;
+  worstTest: { title: string; score: number } | null;
+}
+
+export interface ScoreDistribution {
+  excellent: number;
+  average: number;
+  needsImprovement: number;
+  noAttempts: number;
+}
+
+export interface BatchAnalyticsResponse {
+  batch: {
+    id: string;
+    name: string;
+    inviteCode: string;
+    createdAt: string;
+  };
+  summary: {
+    totalStudents: number;
+    totalTests: number;
+    totalAttempts: number;
+    avgBatchScore: number | null;
+  };
+  students: StudentAnalytics[];
+  tests: TestAnalytics[];
+  leaderboard: LeaderboardEntryAnalytics[];
+  trends: {
+    testScoresOverTime: TestTrend[];
+  };
+  insights: Insights;
+  scoreDistribution: ScoreDistribution;
+}
 
 // ─── Test ────────────────────────────────────────────────
 
@@ -109,7 +200,30 @@ export interface TestSummary {
   submissionCount?: number;
   status?: 'pending' | 'completed';
   result?: { id: string; score: number; percentage: number } | null;
+  expiryDate?: string | null;
+  isExpired?: boolean;
   createdAt?: string;
+}
+
+export interface TestForBatch {
+  id: string;
+  title: string;
+  duration: number;
+  batchId: string | null;
+  batchName: string | null;
+  questionCount: number;
+  submissionCount: number;
+  avgScore: number | null;
+  createdAt: string;
+}
+
+export interface UpcomingTest {
+  id: string;
+  name: string;
+  batchName: string | null;
+  duration: number;
+  questionCount: number;
+  createdAt: string;
 }
 
 export interface TestFull {
@@ -138,15 +252,28 @@ export interface SubmitResult {
 }
 
 export const testApi = {
-  create: (data: { title: string; duration?: number; batchId?: string; questions: NewQuestion[] }) =>
+  create: (data: { 
+    title: string; 
+    duration?: number; 
+    batchId?: string; 
+    questions: NewQuestion[];
+    expiryDate?: string;
+  }) =>
     request<TestFull>('POST', '/test/create', data),
 
   get: () => request<TestSummary[]>('GET', '/test/get'),
 
   getById: (testId: string) => request<TestFull>('GET', `/test/${testId}`),
 
+  getByBatch: (batchId: string) => request<TestForBatch[]>('GET', `/test/batch/${batchId}`),
+
+  getUpcoming: () => request<UpcomingTest[]>('GET', '/test/upcoming'),
+
   submit: (testId: string, answers: { questionId: string; selectedOption: string }[]) =>
     request<SubmitResult>('POST', '/test/submit', { testId, answers }),
+
+  delete: (testId: string) =>
+    request<{ success: boolean; message: string }>('DELETE', `/test/${testId}`),
 };
 
 // ─── Results ─────────────────────────────────────────────
@@ -238,6 +365,110 @@ export interface StudentDashboardData {
 export const dashboardApi = {
   admin: () => request<AdminDashboardData>('GET', '/dashboard/admin'),
   student: () => request<StudentDashboardData>('GET', '/dashboard/student'),
+};
+
+// ─── AI Generation ────────────────────────────────────────
+
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'mixed';
+
+export interface AIGeneratedQuestion {
+  question: string;
+  options: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+}
+
+export interface AIGenerateResponse {
+  success: boolean;
+  questions: AIGeneratedQuestion[];
+  metadata: {
+    subject: string;
+    topic: string;
+    difficulty: Difficulty;
+    count: number;
+  };
+}
+
+export interface AIAnalysis {
+  weakTopics: string[];
+  strongTopics: string[];
+  suggestions: string[];
+  overallScore: number;
+}
+
+export interface AIAnalysisResponse {
+  success: boolean;
+  analysis: AIAnalysis;
+}
+
+export const aiApi = {
+  generateTest: (data: {
+    subject: string;
+    topic: string;
+    difficulty: Difficulty;
+    numberOfQuestions: number;
+  }) => request<AIGenerateResponse>('POST', '/ai/generate-test', data),
+
+  analyzePerformance: (data: {
+    studentName: string;
+    answers: Array<{ question: string; isCorrect: boolean }>;
+    topics?: string[];
+  }) => request<AIAnalysisResponse>('POST', '/ai/analyze-performance', data),
+};
+
+// ─── Test Analytics ───────────────────────────────────────
+
+export interface TestAnalyticsStudent {
+  studentId: string;
+  name: string;
+  email: string;
+  score: number;
+  totalMarks: number;
+  percentage: number;
+  submittedAt: string;
+  weakAreas: string[];
+  aiAnalysis?: AIAnalysis;
+}
+
+export interface TestQuestionAnalysis {
+  questionId: string;
+  questionText: string;
+  totalAttempts: number;
+  correctAttempts: number;
+  correctPercentage: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface TestAnalyticsResponse {
+  test: {
+    id: string;
+    title: string;
+    batchName: string | null;
+    totalQuestions: number;
+    totalAttempts: number;
+    expiryDate: string | null;
+    isExpired: boolean;
+  };
+  summary: {
+    totalStudents: number;
+    avgScore: number;
+    highestScore: number;
+    lowestScore: number;
+    passRate: number;
+    totalQuestions: number;
+  };
+  students: TestAnalyticsStudent[];
+  questionAnalysis: TestQuestionAnalysis[];
+  mostDifficultQuestions: TestQuestionAnalysis[];
+  easiestQuestions: TestQuestionAnalysis[];
+}
+
+export const testAnalyticsApi = {
+  get: (testId: string) => request<TestAnalyticsResponse>('GET', `/test/${testId}/analytics`),
 };
 
 // ─── Token helpers ────────────────────────────────────────

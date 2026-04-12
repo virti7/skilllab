@@ -1,14 +1,10 @@
 import { AppLayout } from "@/components/AppLayout";
 import { RightPanel } from "@/components/RightPanel";
-import { studentScoreTrend, topicBreakdown } from "@/data/dummy";
+import { topicBreakdown } from "@/data/dummy";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { Download, FileText, Loader2 } from "lucide-react";
+import { Download, FileText, Loader2, Sparkles, TrendingUp, Award, BookOpen, ArrowRight, Clock, Target, Trophy } from "lucide-react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
@@ -18,6 +14,89 @@ import {
 import jsPDF from "jspdf";
 import { useEffect, useState } from "react";
 import { dashboardApi, StudentDashboardData } from "@/lib/api";
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  subtext,
+  subtextColor = "text-muted-foreground",
+  gradient,
+}: {
+  icon: typeof Target;
+  label: string;
+  value: string | number;
+  subtext?: string;
+  subtextColor?: string;
+  gradient?: string;
+}) {
+  return (
+    <div className="group relative overflow-hidden bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
+      {gradient && (
+        <div className={`absolute inset-0 opacity-5 ${gradient}`} />
+      )}
+      <div className="relative">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            {label}
+          </p>
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300">
+            <Icon className="w-5 h-5 text-primary" />
+          </div>
+        </div>
+        <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
+        {subtext && (
+          <p className={`text-xs mt-1.5 ${subtextColor}`}>{subtext}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  actionLabel,
+  actionPath,
+}: {
+  icon: typeof BookOpen;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  actionPath?: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
+        <Icon className="w-8 h-8 text-muted-foreground" />
+      </div>
+      <h4 className="text-base font-semibold text-foreground mb-1">{title}</h4>
+      <p className="text-sm text-muted-foreground mb-4 max-w-xs">{description}</p>
+      {actionLabel && actionPath && (
+        <Link
+          to={actionPath}
+          className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-xl hover:bg-primary/90 transition-all duration-200 shadow-sm hover:shadow-md"
+        >
+          {actionLabel}
+          <ArrowRight className="w-4 h-4" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function EmptyChartState() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full py-8">
+      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mb-3">
+        <TrendingUp className="w-7 h-7 text-primary/60" />
+      </div>
+      <p className="text-sm font-medium text-foreground/70">No performance data yet</p>
+      <p className="text-xs text-muted-foreground mt-1">Complete your first test to see your trend</p>
+    </div>
+  );
+}
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -32,14 +111,22 @@ export default function StudentDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Derived values – API first, dummy fallback
   const pendingCount = data?.pendingCount ?? 0;
   const completedCount = data?.completedCount ?? 0;
   const avgScore = data?.avgScore ?? 0;
   const batchRank = data?.batchRank ?? null;
-  const scoreTrend =
-    data?.scoreTrend?.length ? data.scoreTrend : studentScoreTrend;
+  const scoreTrend = data?.scoreTrend ?? [];
   const myTests = data?.recentTests ?? [];
+
+  const hasData = completedCount > 0 || pendingCount > 0;
+  const firstName = user?.name?.split(" ")[0] || "there";
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   const downloadReport = () => {
     const doc = new jsPDF();
@@ -82,245 +169,308 @@ export default function StudentDashboard() {
 
   return (
     <AppLayout rightPanel={<RightPanel />}>
-      {/* Welcome Banner */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">
-            Welcome, {user?.name?.split(" ")[0] || "Student"} 👋
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {pendingCount} tests pending
-            {batchRank ? ` — you're ranked #${batchRank} in your batch!` : ""}
-          </p>
-        </div>
-        <button
-          onClick={downloadReport}
-          className="flex items-center gap-2 bg-foreground text-background text-sm font-medium px-4 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
-        >
-          <Download className="w-4 h-4" />
-          Download My Report
-        </button>
-      </div>
-
       {loading ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <div className="flex items-center justify-center py-20">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
+          </div>
         </div>
       ) : (
         <>
-          {/* Stat Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                My Avg Score
-              </p>
-              <p className="text-3xl font-bold text-success mt-1">{avgScore}%</p>
-              <p className="text-xs text-success mt-1">Top 10%</p>
-            </div>
-            <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Tests Done
-              </p>
-              <p className="text-3xl font-bold text-foreground mt-1">
-                {completedCount + pendingCount}
-              </p>
-              <p className="text-xs text-warning mt-1">{pendingCount} pending</p>
-            </div>
-            <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Batch Rank
-              </p>
-              <p className="text-3xl font-bold text-primary mt-1">
-                {batchRank ? `#${batchRank}` : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {batchRank ? "Keep climbing!" : "Complete a test to rank"}
-              </p>
-            </div>
-          </div>
-
-          {/* Charts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            {/* Score Trend */}
-            <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-              <h3 className="text-sm font-semibold text-foreground mb-4">
-                My Score Trend
-              </h3>
-              <div className="h-52">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={scoreTrend}>
-                    <defs>
-                      <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="test"
-                      tick={{ fontSize: 12 }}
-                      stroke="hsl(var(--muted-foreground))"
-                    />
-                    <YAxis
-                      domain={[0, 100]}
-                      tick={{ fontSize: 12 }}
-                      stroke="hsl(var(--muted-foreground))"
-                      tickFormatter={(v) => `${v}%`}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "0.75rem",
-                        fontSize: 12,
-                      }}
-                      formatter={(value: number) => [`${value}%`, "Score"]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="score"
-                      stroke="hsl(var(--success))"
-                      fill="url(#scoreFill)"
-                      strokeWidth={2}
-                      dot={{ r: 4, fill: "hsl(var(--success))" }}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Topic Breakdown */}
-            <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
-              <h3 className="text-sm font-semibold text-foreground mb-4">
-                Topic Breakdown
-              </h3>
-              <div className="space-y-4">
-                {topicBreakdown.map((t) => (
-                  <div key={t.topic}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm text-foreground">{t.topic}</span>
-                      <span
-                        className="text-sm font-semibold"
-                        style={{ color: t.color }}
-                      >
-                        {t.score}%
-                      </span>
-                    </div>
-                    <div className="w-full h-2 bg-secondary rounded-full">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${t.score}%`, backgroundColor: t.color }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* My Tests Table */}
-          <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-            <div className="p-5 pb-3">
-              <h3 className="text-sm font-semibold text-foreground">My Tests</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-primary uppercase tracking-wide">
-                      Test
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-primary uppercase tracking-wide">
-                      Duration
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-primary uppercase tracking-wide">
-                      Batch
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-primary uppercase tracking-wide">
-                      Status
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-primary uppercase tracking-wide">
-                      Score
-                    </th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-primary uppercase tracking-wide">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myTests.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="text-center px-5 py-8 text-muted-foreground text-sm"
-                      >
-                        No tests assigned yet. Join a batch to get started!
-                      </td>
-                    </tr>
+          <div className="mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">{getGreeting()},</span>
+                  <Sparkles className="w-4 h-4 text-primary" />
+                </div>
+                <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                  Welcome back, {firstName}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {hasData ? (
+                    batchRank ? (
+                      <>You're ranked <span className="text-primary font-semibold">#{batchRank}</span> in your batch. Keep up the great work!</>
+                    ) : (
+                      <>You have <span className="text-warning font-semibold">{pendingCount} pending</span> tests waiting for you.</>
+                    )
                   ) : (
-                    myTests.map((test, i) => (
-                      <tr
-                        key={test.id}
-                        className="border-b border-border last:border-0"
-                      >
-                        <td className="px-5 py-3.5 font-medium text-foreground">
-                          {test.name}
-                        </td>
-                        <td className="px-5 py-3.5 text-muted-foreground">
-                          {test.duration}
-                        </td>
-                        <td className="px-5 py-3.5 text-muted-foreground">
-                          {test.batchName || "—"}
-                        </td>
-                        <td className="px-5 py-3.5">
+                    <>Ready to start your learning journey? <span className="text-primary font-medium">Let's go!</span></>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={downloadReport}
+                disabled={!hasData}
+                className="inline-flex items-center gap-2 bg-foreground text-background text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+              >
+                <Download className="w-4 h-4" />
+                Download Report
+              </button>
+            </div>
+          </div>
+
+          {!hasData ? (
+            <div className="bg-gradient-to-br from-primary/5 via-card to-card rounded-2xl border border-border p-8 text-center">
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6">
+                <BookOpen className="w-10 h-10 text-primary" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground mb-2">
+                Join a batch to start learning
+              </h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                You're not enrolled in any batch yet. Contact your administrator or institution to get started with your courses and assessments.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Link
+                  to="/student/tests"
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-semibold px-6 py-3 rounded-xl hover:bg-primary/90 transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Browse Courses
+                </Link>
+                <Link
+                  to="/student/leaderboard"
+                  className="inline-flex items-center gap-2 border border-border text-foreground text-sm font-medium px-6 py-3 rounded-xl hover:bg-secondary transition-all duration-200"
+                >
+                  View Leaderboard
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                <StatCard
+                  icon={Target}
+                  label="My Avg Score"
+                  value={`${avgScore}%`}
+                  subtext={avgScore >= 80 ? "Excellent performance!" : avgScore >= 60 ? "Room to improve" : "Keep practicing"}
+                  subtextColor={avgScore >= 80 ? "text-success" : avgScore >= 60 ? "text-warning" : "text-destructive"}
+                  gradient="bg-gradient-to-br from-success/20 to-transparent"
+                />
+                <StatCard
+                  icon={BookOpen}
+                  label="Tests Done"
+                  value={completedCount + pendingCount}
+                  subtext={`${completedCount} completed • ${pendingCount} pending`}
+                  subtextColor="text-muted-foreground"
+                />
+                <StatCard
+                  icon={Trophy}
+                  label="Batch Rank"
+                  value={batchRank ? `#${batchRank}` : "—"}
+                  subtext={batchRank ? "Keep climbing!" : "Complete a test to rank"}
+                  subtextColor={batchRank ? "text-primary" : "text-muted-foreground"}
+                  gradient="bg-gradient-to-br from-primary/20 to-transparent"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                <div className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/10 transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      Score Trend
+                    </h3>
+                    {scoreTrend.length > 0 && (
+                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-lg">
+                        Last {scoreTrend.length} tests
+                      </span>
+                    )}
+                  </div>
+                  {scoreTrend.length === 0 ? (
+                    <EmptyChartState />
+                  ) : (
+                    <div className="h-52">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={scoreTrend}>
+                          <defs>
+                            <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
+                              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <XAxis
+                            dataKey="test"
+                            tick={{ fontSize: 11 }}
+                            stroke="hsl(var(--muted-foreground))"
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            domain={[0, 100]}
+                            tick={{ fontSize: 11 }}
+                            stroke="hsl(var(--muted-foreground))"
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={(v) => `${v}%`}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              background: "hsl(var(--card))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "0.75rem",
+                              fontSize: 12,
+                              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                            }}
+                            formatter={(value: number) => [`${value}%`, "Score"]}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="score"
+                            stroke="hsl(var(--primary))"
+                            fill="url(#scoreFill)"
+                            strokeWidth={2.5}
+                            dot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                            activeDot={{ r: 6, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/10 transition-all duration-300">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Award className="w-4 h-4 text-primary" />
+                      Topic Breakdown
+                    </h3>
+                  </div>
+                  <div className="space-y-4">
+                    {topicBreakdown.map((t, i) => (
+                      <div key={t.topic} className="group">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm text-foreground font-medium">{t.topic}</span>
                           <span
-                            className={`text-xs font-medium ${
-                              test.status === "pending"
-                                ? "text-warning"
-                                : "text-success"
-                            }`}
+                            className="text-sm font-bold"
+                            style={{ color: t.color }}
                           >
-                            {test.status === "pending" ? "Pending" : "Done"}
+                            {t.score}%
                           </span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {test.score !== null ? (
-                            <span className="font-semibold text-success">
-                              {test.score}%
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          {test.status === "pending" ? (
-                            <Link
-                              to={`/student/test-page/${test.id}`}
-                              className={`text-xs font-medium px-4 py-1.5 rounded-lg transition-opacity ${
-                                i === 0
-                                  ? "bg-primary text-primary-foreground hover:opacity-90"
-                                  : "border border-border text-foreground hover:bg-secondary"
+                        </div>
+                        <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500 ease-out"
+                            style={{
+                              width: `${t.score}%`,
+                              backgroundColor: t.color,
+                              transitionDelay: `${i * 100}ms`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+                <div className="p-5 border-b border-border flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" />
+                    My Tests
+                  </h3>
+                  <Link
+                    to="/student/tests"
+                    className="text-xs text-primary font-medium hover:underline flex items-center gap-1"
+                  >
+                    View all
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-secondary/30">
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Test
+                        </th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Duration
+                        </th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Batch
+                        </th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Status
+                        </th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Score
+                        </th>
+                        <th className="text-left px-5 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {myTests.map((test, i) => (
+                        <tr
+                          key={test.id}
+                          className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors duration-150"
+                        >
+                          <td className="px-5 py-3.5">
+                            <span className="font-medium text-foreground">{test.name}</span>
+                          </td>
+                          <td className="px-5 py-3.5 text-muted-foreground">
+                            {test.duration}
+                          </td>
+                          <td className="px-5 py-3.5 text-muted-foreground">
+                            {test.batchName || "—"}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
+                                test.status === "pending"
+                                  ? "bg-warning/10 text-warning"
+                                  : "bg-success/10 text-success"
                               }`}
                             >
-                              Start
-                            </Link>
-                          ) : (
-                            <button
-                              onClick={() => downloadTestPdf(test)}
-                              className="flex items-center gap-1.5 text-xs font-medium bg-foreground text-background px-3 py-1.5 rounded-lg hover:opacity-90 transition-opacity"
-                            >
-                              <FileText className="w-3 h-3" />
-                              PDF
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                              {test.status === "pending" ? "Pending" : "Done"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {test.score !== null ? (
+                              <span className="font-bold text-success">
+                                {test.score}%
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            {test.status === "pending" ? (
+                              <Link
+                                to={`/student/test-page/${test.id}`}
+                                className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-1.5 rounded-lg transition-all duration-200 ${
+                                  i === 0
+                                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md"
+                                    : "border border-border text-foreground hover:bg-secondary"
+                                }`}
+                              >
+                                Start
+                              </Link>
+                            ) : (
+                              <button
+                                onClick={() => downloadTestPdf(test)}
+                                className="inline-flex items-center gap-1.5 bg-foreground text-background text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-foreground/80 transition-all duration-200"
+                              >
+                                <FileText className="w-3 h-3" />
+                                PDF
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </>
       )}
     </AppLayout>

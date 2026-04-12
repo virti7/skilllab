@@ -1,12 +1,12 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { LogOut, ChevronDown } from "lucide-react";
+import { LogOut, ChevronDown, Search } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 const roleBadge: Record<string, { label: string; className: string }> = {
-  super_admin: { label: "Super Admin", className: "bg-card-purple text-foreground" },
-  admin: { label: "Admin", className: "bg-card-orange text-foreground" },
-  student: { label: "Student", className: "bg-card-blue text-foreground" },
+  super_admin: { label: "Super Admin", className: "bg-card-purple/80 text-foreground" },
+  admin: { label: "Admin", className: "bg-card-orange/80 text-foreground" },
+  student: { label: "Student", className: "bg-card-blue/80 text-foreground" },
 };
 
 export function TopBar() {
@@ -27,33 +27,44 @@ export function TopBar() {
   const badge = roleBadge[user.role];
 
   return (
-    <header className="h-14 border-b border-border bg-card flex items-center justify-between px-6">
-      <div />
+    <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-30">
+      <div className="flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-2 bg-secondary/80 rounded-xl px-3 py-2">
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Quick search..."
+            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-48"
+          />
+        </div>
+      </div>
       <div className="flex items-center gap-3" ref={ref}>
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-lg ${badge.className}`}>{badge.label}</span>
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-lg ${badge.className}`}>
+          {badge.label}
+        </span>
         <button
           onClick={() => setOpen(!open)}
           className="flex items-center gap-2 hover:bg-secondary rounded-xl px-2 py-1.5 transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-xs font-bold text-primary-foreground shadow-sm">
             {user.avatar}
           </div>
           <span className="text-sm font-medium text-foreground hidden sm:inline">{user.name}</span>
-          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
         </button>
 
         {open && (
-          <div className="absolute right-6 top-12 mt-1 w-48 bg-card border border-border rounded-xl shadow-lg py-1 z-50">
-            <div className="px-4 py-2 border-b border-border">
-              <p className="text-sm font-medium text-foreground">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
+          <div className="absolute right-6 top-14 mt-1 w-56 bg-card border border-border rounded-xl shadow-xl shadow-black/10 py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="px-4 py-3 border-b border-border">
+              <p className="text-sm font-semibold text-foreground">{user.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
             </div>
             <button
               onClick={() => { logout(); navigate("/login"); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-secondary transition-colors"
+              className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-destructive hover:bg-destructive/5 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              Logout
+              Log out
             </button>
           </div>
         )}

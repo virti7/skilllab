@@ -101,9 +101,9 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {tableData.map((t, i) => (
+                {tableData.map((t: { id?: string; name: string; batch: string; date: string; avgScore: number; submissions: number }, i: number) => (
                   <tr
-                    key={"id" in t ? (t as any).id : i}
+                    key={t.id || i}
                     className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors"
                   >
                     <td className="px-5 py-3 font-medium text-foreground">{t.name}</td>

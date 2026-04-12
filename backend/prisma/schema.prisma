@@ -1,26 +1,25 @@
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  password    String
-  name        String
-  role        Role     @default(STUDENT)
-  instituteId String?
-  createdAt   DateTime @default(now())
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
 
-  institute     Institute?     @relation(fields: [instituteId], references: [id])
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  name          String
+  role          Role           @default(STUDENT)
+  instituteId   String?
+  createdAt     DateTime       @default(now())
+  answers       Answer[]
   batchStudents BatchStudent[]
   results       Result[]
-  answers       Answer[]
+  institute     Institute?     @relation(fields: [instituteId], references: [id])
 
   @@map("users")
 }
@@ -29,23 +28,21 @@ model Institute {
   id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now())
-
-  users   User[]
-  batches Batch[]
-  tests   Test[]
+  batches   Batch[]
+  tests     Test[]
+  users     User[]
 
   @@map("institutes")
 }
 
 model Batch {
-  id          String   @id @default(uuid())
-  name        String
-  inviteCode  String   @unique
-  instituteId String
-  createdAt   DateTime @default(now())
-
-  institute     Institute      @relation(fields: [instituteId], references: [id])
+  id            String         @id @default(uuid())
+  name          String
+  inviteCode    String         @unique
+  instituteId   String
+  createdAt     DateTime       @default(now())
   batchStudents BatchStudent[]
+  institute     Institute      @relation(fields: [instituteId], references: [id])
   tests         Test[]
 
   @@map("batches")
@@ -56,26 +53,26 @@ model BatchStudent {
   batchId  String
   userId   String
   joinedAt DateTime @default(now())
-
-  batch Batch @relation(fields: [batchId], references: [id])
-  user  User  @relation(fields: [userId], references: [id])
+  batch    Batch    @relation(fields: [batchId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
 
   @@unique([batchId, userId])
   @@map("batch_students")
 }
 
 model Test {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   title       String
-  duration    Int      @default(30)
+  duration    Int        @default(30)
   instituteId String
   batchId     String?
-  createdAt   DateTime @default(now())
-
-  institute Institute  @relation(fields: [instituteId], references: [id])
-  batch     Batch?     @relation(fields: [batchId], references: [id])
-  questions Question[]
-  results   Result[]
+  expiryDate  DateTime?
+  createdBy   String?
+  createdAt   DateTime   @default(now())
+  questions   Question[]
+  results     Result[]
+  batch       Batch?     @relation(fields: [batchId], references: [id])
+  institute   Institute  @relation(fields: [instituteId], references: [id])
 
   @@map("tests")
 }
@@ -90,9 +87,8 @@ model Question {
   optionD       String
   correctOption String
   createdAt     DateTime @default(now())
-
-  test    Test     @relation(fields: [testId], references: [id])
-  answers Answer[]
+  answers       Answer[]
+  test          Test     @relation(fields: [testId], references: [id])
 
   @@map("questions")
 }
@@ -105,26 +101,24 @@ model Result {
   totalMarks  Int
   percentage  Float
   submittedAt DateTime @default(now())
-
-  user    User     @relation(fields: [userId], references: [id])
-  test    Test     @relation(fields: [testId], references: [id])
-  answers Answer[]
+  answers     Answer[]
+  test        Test     @relation(fields: [testId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, testId])
   @@map("results")
 }
 
 model Answer {
-  id             String  @id @default(uuid())
+  id             String   @id @default(uuid())
   resultId       String
   questionId     String
   selectedOption String
   isCorrect      Boolean
   userId         String
-
-  result   Result   @relation(fields: [resultId], references: [id])
-  question Question @relation(fields: [questionId], references: [id])
-  user     User     @relation(fields: [userId], references: [id])
+  question       Question @relation(fields: [questionId], references: [id])
+  result         Result   @relation(fields: [resultId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
 
   @@map("answers")
 }

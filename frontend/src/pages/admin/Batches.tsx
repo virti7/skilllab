@@ -1,6 +1,7 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Plus, Loader2, Copy, Check, Users, BookOpen } from "lucide-react";
+import { Plus, Loader2, Copy, Check, Users, BookOpen, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { batchApi, Batch } from "@/lib/api";
 import { batches as dummyBatches } from "@/data/dummy";
 
@@ -11,6 +12,7 @@ const statusColor = {
 };
 
 export default function Batches() {
+  const navigate = useNavigate();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -130,9 +132,13 @@ export default function Batches() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {batches.map((b) => (
-            <div key={b.id} className="bg-card rounded-2xl p-5 border border-border shadow-sm">
+            <div
+              key={b.id}
+              className="bg-card rounded-2xl p-5 border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer group"
+              onClick={() => navigate(`/admin/batch/${b.id}`)}
+            >
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-foreground">{b.name}</h3>
+                <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{b.name}</h3>
                 <span className={`px-2 py-0.5 rounded-lg text-xs font-medium bg-card-green`}>
                   active
                 </span>
@@ -147,27 +153,42 @@ export default function Batches() {
                   {b.testCount ?? 0} tests
                 </span>
               </div>
-              {b.inviteCode && (
-                <div className="flex items-center justify-between bg-secondary rounded-xl px-4 py-2.5 mt-2">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Invite Code</p>
-                    <p className="font-mono font-bold text-foreground text-sm tracking-widest">
-                      {b.inviteCode}
-                    </p>
+              <div className="flex items-center justify-between">
+                {b.inviteCode && (
+                  <div className="flex items-center justify-between bg-secondary rounded-xl px-4 py-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Invite Code</p>
+                      <p className="font-mono font-bold text-foreground text-sm tracking-widest">
+                        {b.inviteCode}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copyCode(b.inviteCode!);
+                      }}
+                      className="flex items-center gap-1.5 text-xs font-medium text-primary hover:opacity-80 transition-opacity ml-4"
+                    >
+                      {copiedId === b.id ? (
+                        <Check className="w-3.5 h-3.5 text-success" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
+                      {copiedId === b.id ? "Copied!" : "Copy"}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => copyCode(b.inviteCode!, b.id)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:opacity-80 transition-opacity"
-                  >
-                    {copiedId === b.id ? (
-                      <Check className="w-3.5 h-3.5 text-success" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                    {copiedId === b.id ? "Copied!" : "Copy"}
-                  </button>
-                </div>
-              )}
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/admin/batch/${b.id}`);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors ml-auto"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Analytics
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -1,6 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config({ override: true });
 import express from 'express';
 import cors from 'cors';
-import 'dotenv/config';
+
+console.log('GROQ_API_KEY loaded:', process.env.GROQ_API_KEY ? 'Yes (length: ' + process.env.GROQ_API_KEY.length + ')' : 'No');
 
 import authRoutes from './routes/auth.routes.js';
 import batchRoutes from './routes/batch.routes.js';
@@ -8,6 +11,8 @@ import testRoutes from './routes/test.routes.js';
 import resultRoutes from './routes/result.routes.js';
 import leaderboardRoutes from './routes/leaderboard.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
+import aiRoutes from './routes/ai.routes.js';
+import testAnalyticsRoutes from './routes/testAnalytics.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -28,9 +33,11 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/batch', batchRoutes);
 app.use('/api/test', testRoutes);
+app.use('/api/test', testAnalyticsRoutes);
 app.use('/api/result', resultRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 404 handler
 app.use((req, res) => {

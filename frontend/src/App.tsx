@@ -18,6 +18,7 @@ import Subscriptions from "./pages/super-admin/Subscriptions";
 // Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Batches from "./pages/admin/Batches";
+import BatchAnalytics from "./pages/admin/BatchAnalytics";
 import AdminStudents from "./pages/admin/Students";
 import AdminTests from "./pages/admin/AdminTests";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
@@ -62,6 +63,7 @@ const App = () => (
             {/* Admin */}
             <Route path="/admin" element={<Admin><AdminDashboard /></Admin>} />
             <Route path="/admin/batches" element={<Admin><Batches /></Admin>} />
+            <Route path="/admin/batch/:id" element={<Admin><BatchAnalytics /></Admin>} />
             <Route path="/admin/students" element={<Admin><AdminStudents /></Admin>} />
             <Route path="/admin/tests" element={<Admin><AdminTests /></Admin>} />
             <Route path="/admin/leaderboard" element={<Admin><Leaderboard /></Admin>} />

@@ -66,6 +66,87 @@ export async function joinBatch(req, res) {
   }
 }
 
+// GET /api/batch/:id/students
+export async function getBatchStudents(req, res) {
+  try {
+    const { id } = req.params;
+    const { instituteId } = req.user;
+
+    const batch = await prisma.batch.findUnique({
+      where: { id },
+      select: { instituteId: true },
+    });
+
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found' });
+    }
+
+    if (batch.instituteId !== instituteId && req.user.role === 'ADMIN') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const students = await prisma.batchStudent.findMany({
+      where: { batchId: id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            createdAt: true,
+          },
+        },
+        batch: {
+          select: { name: true },
+        },
+      },
+      orderBy: { joinedAt: 'desc' },
+    });
+
+    const studentsWithResults = await Promise.all(
+      students.map(async (bs) => {
+        const results = await prisma.result.findMany({
+          where: {
+            userId: bs.user.id,
+            test: { batchId: id },
+          },
+          select: {
+            percentage: true,
+            score: true,
+            totalMarks: true,
+          },
+        });
+
+        const avgScore =
+          results.length > 0
+            ? Math.round(results.reduce((s, r) => s + r.percentage, 0) / results.length)
+            : null;
+        const totalScore = results.reduce((s, r) => s + r.score, 0);
+
+        return {
+          id: bs.user.id,
+          name: bs.user.name,
+          email: bs.user.email,
+          joinedAt: bs.joinedAt,
+          batchName: bs.batch.name,
+          testsCompleted: results.length,
+          avgScore,
+          totalScore,
+        };
+      })
+    );
+
+    return res.json({
+      batchId: id,
+      batchName: students[0]?.batch.name || '',
+      students: studentsWithResults,
+    });
+  } catch (err) {
+    console.error('Get batch students error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 // GET /api/batch/get
 export async function getBatches(req, res) {
   try {

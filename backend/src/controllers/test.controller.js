@@ -1,10 +1,109 @@
 import prisma from '../utils/prisma.js';
 
+// GET /api/test/batch/:batchId
+export async function getTestsByBatch(req, res) {
+  try {
+    const { batchId } = req.params;
+    const { instituteId } = req.user;
+
+    const tests = await prisma.test.findMany({
+      where: { batchId },
+      include: {
+        batch: { select: { name: true } },
+        _count: { select: { questions: true, results: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const testsWithStats = await Promise.all(
+      tests.map(async (test) => {
+        const results = await prisma.result.findMany({
+          where: { testId: test.id },
+          select: { percentage: true, score: true, totalMarks: true },
+        });
+
+        const avgScore =
+          results.length > 0
+            ? Math.round(results.reduce((s, r) => s + r.percentage, 0) / results.length)
+            : null;
+
+        return {
+          id: test.id,
+          title: test.title,
+          duration: test.duration,
+          batchId: test.batchId,
+          batchName: test.batch?.name || null,
+          questionCount: test._count.questions,
+          submissionCount: test._count.results,
+          avgScore,
+          expiryDate: test.expiryDate,
+          isExpired: test.expiryDate ? new Date() > new Date(test.expiryDate) : false,
+          createdAt: test.createdAt,
+        };
+      })
+    );
+
+    return res.json(testsWithStats);
+  } catch (err) {
+    console.error('Get tests by batch error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// GET /api/test/upcoming
+export async function getUpcomingTests(req, res) {
+  try {
+    const { id: userId, instituteId } = req.user;
+
+    const batchStudents = await prisma.batchStudent.findMany({
+      where: { userId },
+      select: { batchId: true },
+    });
+    const batchIds = batchStudents.map((bs) => bs.batchId);
+
+    const completedTestIds = await prisma.result.findMany({
+      where: { userId },
+      select: { testId: true },
+    });
+    const completedIds = completedTestIds.map((r) => r.testId);
+
+    const upcomingTests = await prisma.test.findMany({
+      where: {
+        OR: [
+          { batchId: { in: batchIds } },
+          { batchId: null, instituteId: instituteId || undefined },
+        ],
+        id: { notIn: completedIds },
+      },
+      include: {
+        batch: { select: { name: true } },
+        _count: { select: { questions: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 10,
+    });
+
+    return res.json(
+      upcomingTests.map((t) => ({
+        id: t.id,
+        name: t.title,
+        batchName: t.batch?.name || null,
+        duration: t.duration,
+        questionCount: t._count.questions,
+        createdAt: t.createdAt,
+      }))
+    );
+  } catch (err) {
+    console.error('Get upcoming tests error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 // POST /api/test/create
 export async function createTest(req, res) {
   try {
-    const { title, duration, batchId, questions } = req.body;
-    const { instituteId } = req.user;
+    const { title, duration, batchId, questions, expiryDate } = req.body;
+    const { id: adminId, instituteId } = req.user;
 
     if (!title || !questions || !Array.isArray(questions) || questions.length === 0) {
       return res.status(400).json({ error: 'title and at least one question are required' });
@@ -24,12 +123,23 @@ export async function createTest(req, res) {
       }
     }
 
+    // Validate expiry date if provided
+    let parsedExpiryDate = null;
+    if (expiryDate) {
+      parsedExpiryDate = new Date(expiryDate);
+      if (isNaN(parsedExpiryDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid expiry date format' });
+      }
+    }
+
     const test = await prisma.test.create({
       data: {
         title,
         duration: duration || 30,
         instituteId,
         batchId: batchId || null,
+        expiryDate: parsedExpiryDate,
+        createdBy: adminId,
         questions: {
           create: questions.map((q) => ({
             questionText: q.questionText,
@@ -75,6 +185,8 @@ export async function getTests(req, res) {
           batchName: t.batch?.name || null,
           questionCount: t._count.questions,
           submissionCount: t._count.results,
+          expiryDate: t.expiryDate,
+          isExpired: t.expiryDate ? new Date() > new Date(t.expiryDate) : false,
           createdAt: t.createdAt,
         }))
       );
@@ -166,6 +278,51 @@ export async function getTestById(req, res) {
   }
 }
 
+// DELETE /api/test/:testId
+export async function deleteTest(req, res) {
+  try {
+    const { testId } = req.params;
+    const { role, instituteId } = req.user;
+
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Only admins can delete tests' });
+    }
+
+    const test = await prisma.test.findUnique({
+      where: { id: testId },
+      select: { id: true, instituteId: true },
+    });
+
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    if (test.instituteId !== instituteId) {
+      return res.status(403).json({ error: 'You can only delete tests from your institute' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.answer.deleteMany({
+        where: { question: { testId } },
+      });
+      await tx.question.deleteMany({
+        where: { testId },
+      });
+      await tx.result.deleteMany({
+        where: { testId },
+      });
+      await tx.test.delete({
+        where: { id: testId },
+      });
+    });
+
+    return res.json({ success: true, message: 'Test deleted successfully' });
+  } catch (err) {
+    console.error('Delete test error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 // POST /api/test/submit
 export async function submitTest(req, res) {
   try {
@@ -174,6 +331,21 @@ export async function submitTest(req, res) {
 
     if (!testId || !answers || !Array.isArray(answers)) {
       return res.status(400).json({ error: 'testId and answers array are required' });
+    }
+
+    // Fetch test to check expiry
+    const test = await prisma.test.findUnique({
+      where: { id: testId },
+      select: { id: true, expiryDate: true },
+    });
+
+    if (!test) {
+      return res.status(404).json({ error: 'Test not found' });
+    }
+
+    // Check if test is expired
+    if (test.expiryDate && new Date() > new Date(test.expiryDate)) {
+      return res.status(403).json({ error: 'Test has expired', expired: true });
     }
 
     // Check duplicate submission
