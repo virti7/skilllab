@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import { prisma } from '../utils/prisma.js';
 import { generateTestFeedback } from '../services/groq.service.js';
 
 export async function getTestResult(req, res) {

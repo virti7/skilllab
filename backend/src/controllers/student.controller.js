@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import { prisma } from '../utils/prisma.js';
 
 export async function getStudentAnalytics(req, res) {
   try {
@@ -241,6 +241,109 @@ export async function getCompletedTestsAnalytics(req, res) {
     res.json({ tests: formatted });
   } catch (err) {
     console.error('Get completed tests analytics error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function getCombinedAnalytics(req, res) {
+  try {
+    const { id: userId } = req.user;
+
+    console.log("Fetching combined analytics for user:", userId);
+
+    const testResults = await prisma.result.findMany({
+      where: { userId },
+      include: {
+        test: {
+          select: { id: true, title: true, batchId: true },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    const codingResults = await prisma.codingResult.findMany({
+      where: { userId },
+      include: {
+        question: {
+          select: { id: true, title: true, topic: true, type: true },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    const testsCompleted = testResults.length;
+    const testsPassed = testResults.filter(r => r.percentage >= 50).length;
+    const testsAccuracy = testsCompleted > 0
+      ? Math.round(testResults.reduce((sum, r) => sum + r.percentage, 0) / testsCompleted)
+      : 0;
+
+    const codingSubmissions = codingResults.length;
+    const codingPassed = codingResults.filter(r => r.passed > 0).length;
+    const codingAccuracy = codingSubmissions > 0
+      ? Math.round(codingResults.reduce((sum, r) => sum + (r.passed / r.total) * 100, 0) / codingSubmissions)
+      : 0;
+
+    const uniqueCodingProblems = new Set(codingResults.map(r => r.questionId)).size;
+    const uniqueSolved = new Set(codingResults.filter(r => r.passed === r.total && r.total > 0).map(r => r.questionId)).size;
+
+    const lastActivity = testResults[0]?.submittedAt || codingResults[0]?.submittedAt || null;
+
+    const codingTopicStats = {};
+    codingResults.forEach(r => {
+      const topic = r.question.topic || 'General';
+      if (!codingTopicStats[topic]) {
+        codingTopicStats[topic] = { total: 0, passed: 0 };
+      }
+      codingTopicStats[topic].total += r.total;
+      codingTopicStats[topic].passed += r.passed;
+    });
+
+    const codingTopicBreakdown = Object.entries(codingTopicStats).map(([topic, stats]) => ({
+      topic,
+      total: stats.total,
+      passed: stats.passed,
+      percentage: stats.total > 0 ? Math.round((stats.passed / stats.total) * 100) : 0,
+    }));
+
+    const recentActivity = [
+      ...testResults.slice(0, 5).map(r => ({
+        type: 'test',
+        id: r.testId,
+        title: r.test.title,
+        percentage: r.percentage,
+        submittedAt: r.submittedAt,
+      })),
+      ...codingResults.slice(0, 5).map(r => ({
+        type: 'coding',
+        id: r.questionId,
+        title: r.question.title,
+        passed: r.passed,
+        total: r.total,
+        submittedAt: r.submittedAt,
+      })),
+    ].sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)).slice(0, 10);
+
+    res.json({
+      tests: {
+        completed: testsCompleted,
+        passed: testsPassed,
+        accuracy: testsAccuracy,
+      },
+      coding: {
+        submissions: codingSubmissions,
+        problemsAttempted: uniqueCodingProblems,
+        problemsSolved: uniqueSolved,
+        accuracy: codingAccuracy,
+        topicBreakdown: codingTopicBreakdown,
+      },
+      combined: {
+        totalActivity: testsCompleted + codingSubmissions,
+        lastActivity,
+      },
+      recentActivity,
+    });
+  } catch (err) {
+    console.error('Get combined analytics error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 }

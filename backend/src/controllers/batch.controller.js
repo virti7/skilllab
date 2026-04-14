@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto';
-import prisma from '../utils/prisma.js';
+import { prisma } from '../utils/prisma.js';
 
 function generateInviteCode() {
   return randomBytes(4).toString('hex').toUpperCase(); // e.g. "A3F7BC12"
@@ -196,6 +196,51 @@ export async function getBatches(req, res) {
     );
   } catch (err) {
     console.error('Get batches error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function getAdminBatches(req, res) {
+  try {
+    const { role, instituteId } = req.user;
+    
+    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Return all batches for now (filter by instituteId can be added later)
+    const batches = await prisma.batch.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    console.log("Admin batches:", batches.length);
+    return res.json(batches);
+  } catch (err) {
+    console.error('Get admin batches error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+export async function getStudentBatches(req, res) {
+  try {
+    const userId = req.user.id;
+
+    const batchStudents = await prisma.batchStudent.findMany({
+      where: { userId },
+      include: {
+        batch: true,
+      },
+    });
+
+    const batches = batchStudents.map(bs => ({
+      id: bs.batch.id,
+      name: bs.batch.name,
+      joinedAt: bs.joinedAt,
+    }));
+
+    return res.json(batches);
+  } catch (err) {
+    console.error('Get student batches error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

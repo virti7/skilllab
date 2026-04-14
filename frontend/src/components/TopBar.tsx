@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { LogOut, ChevronDown, Search } from "lucide-react";
+import { LogOut, ChevronDown } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 const roleBadge: Record<string, { label: string; className: string }> = {
@@ -28,15 +28,8 @@ export function TopBar() {
 
   return (
     <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-6 sticky top-0 z-30">
-      <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-2 bg-secondary/80 rounded-xl px-3 py-2">
-          <Search className="w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Quick search..."
-            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-48"
-          />
-        </div>
+      <div className="flex items-center gap-2">
+        <span className="text-lg font-bold text-primary">SkillLab</span>
       </div>
       <div className="flex items-center gap-3" ref={ref}>
         <span className={`text-xs font-medium px-2.5 py-1 rounded-lg ${badge.className}`}>

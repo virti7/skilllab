@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import { prisma } from '../utils/prisma.js';
 
 // GET /api/dashboard/admin
 export async function adminDashboard(req, res) {

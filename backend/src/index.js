@@ -3,7 +3,8 @@ dotenv.config({ override: true });
 import express from 'express';
 import cors from 'cors';
 
-console.log('GROQ_API_KEY loaded:', process.env.GROQ_API_KEY ? 'Yes (length: ' + process.env.GROQ_API_KEY.length + ')' : 'No');
+console.log('GROQ_API_KEY loaded:', process.env.GROQ_API_KEY ? 'Yes' : 'No');
+
 
 import authRoutes from './routes/auth.routes.js';
 import batchRoutes from './routes/batch.routes.js';
@@ -15,6 +16,8 @@ import aiRoutes from './routes/ai.routes.js';
 import testAnalyticsRoutes from './routes/testAnalytics.routes.js';
 import testResultRoutes from './routes/testResult.routes.js';
 import studentRoutes from './routes/student.routes.js';
+import codingRoutes from './routes/coding.routes.js';
+import compilerRoutes from './routes/compiler.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -42,6 +45,8 @@ app.use('/api/result', resultRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/coding', codingRoutes);
+app.use('/api/compiler', compilerRoutes);
 
 // 404 handler
 app.use((req, res) => {

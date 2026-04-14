@@ -105,6 +105,12 @@ export const batchApi = {
 
   get: () => request<Batch[]>('GET', '/batch/get'),
 
+  getMy: () => request<Batch[]>('GET', '/batch/my'),
+
+  getAdminBatches: () => request<Batch[]>('GET', '/batch/admin/batches'),
+
+  getStudentBatches: () => request<Batch[]>('GET', '/batch/student/batches'),
+
   getStudents: (batchId: string) =>
     request<BatchStudentsResponse>('GET', `/batch/${batchId}/students`),
 
@@ -198,10 +204,11 @@ export interface TestSummary {
   batchName?: string | null;
   questionCount: number;
   submissionCount?: number;
-  status?: 'pending' | 'completed';
-  result?: { id: string; score: number; percentage: number } | null;
+  status?: 'upcoming' | 'completed';
+  result?: { id: string; score: number; percentage: number; submittedAt?: string } | null;
   expiryDate?: string | null;
   isExpired?: boolean;
+  isUpcoming?: boolean;
   createdAt?: string;
 }
 
@@ -215,6 +222,8 @@ export interface TestForBatch {
   submissionCount: number;
   avgScore: number | null;
   createdAt: string;
+  isExpired?: boolean;
+  expiryDate?: string | null;
 }
 
 export interface UpcomingTest {
@@ -224,6 +233,58 @@ export interface UpcomingTest {
   duration: number;
   questionCount: number;
   createdAt: string;
+}
+
+export interface TestStudentHistory {
+  submissionId: string;
+  testId: string;
+  testTitle: string;
+  batchId: string | null;
+  batchName: string;
+  score: number;
+  totalQuestions: number;
+  correctCount: number;
+  wrongCount: number;
+  percentage: number;
+  accuracy: number;
+  timeTaken: number;
+  submittedAt: string;
+  type?: 'normal' | 'coding';
+  questionId?: string;
+  questionTitle?: string;
+  questionTopic?: string;
+  questionDifficulty?: string;
+  language?: string;
+  status?: string;
+  runtime?: string;
+  memory?: string;
+}
+
+export interface TestSubmissionAnalytics {
+  submissionId: string;
+  testId: string;
+  testTitle: string;
+  batchName: string;
+  batchId: string | null;
+  score: number;
+  total: number;
+  correct: number;
+  wrong: number;
+  accuracy: number;
+  timeTaken: number;
+  submittedAt: string;
+  percentage: number;
+  weakTopics: string[];
+  strongTopics: string[];
+  questionBreakdown: Array<{
+    questionId: string;
+    question: string;
+    options: { A: string; B: string; C: string; D: string };
+    selectedOption: string | null;
+    correctOption: string;
+    isCorrect: boolean;
+    status: 'correct' | 'wrong';
+  }>;
 }
 
 export interface TestFull {
@@ -282,6 +343,16 @@ export const testApi = {
   getByBatch: (batchId: string) => request<TestForBatch[]>('GET', `/test/batch/${batchId}`),
 
   getUpcoming: () => request<UpcomingTest[]>('GET', '/test/upcoming'),
+
+  getStudentTests: (batchId?: string) => 
+    request<TestSummary[]>('GET', `/test/student${batchId ? `?batchId=${batchId}` : ''}`),
+
+  getGeneral: () => request<TestSummary[]>('GET', '/test/general'),
+
+  getHistory: () => request<TestStudentHistory[]>('GET', '/test/history'),
+
+  getSubmissionAnalytics: (submissionId: string) => 
+    request<TestSubmissionAnalytics>('GET', `/test/submission/${submissionId}`),
 
   submit: (testId: string, answers: { questionId: string; selectedOption: string }[]) =>
     request<SubmitResult>('POST', '/test/submit', { testId, answers }),
@@ -567,6 +638,39 @@ export interface StudentAnalyticsData {
   }>;
 }
 
+export interface CombinedAnalytics {
+  tests: {
+    completed: number;
+    passed: number;
+    accuracy: number;
+  };
+  coding: {
+    submissions: number;
+    problemsAttempted: number;
+    problemsSolved: number;
+    accuracy: number;
+    topicBreakdown: Array<{
+      topic: string;
+      total: number;
+      passed: number;
+      percentage: number;
+    }>;
+  };
+  combined: {
+    totalActivity: number;
+    lastActivity: string | null;
+  };
+  recentActivity: Array<{
+    type: 'test' | 'coding';
+    id: string;
+    title: string;
+    percentage?: number;
+    passed?: number;
+    total?: number;
+    submittedAt: string;
+  }>;
+}
+
 export const studentApi = {
   getAnalytics: () => request<StudentAnalyticsData>('GET', '/student/analytics'),
   getTopicBreakdown: () => request<{ topics: Array<{ topic: string; total: number; correct: number; percentage: number }> }>('GET', '/student/topic-breakdown'),
@@ -585,6 +689,7 @@ export const studentApi = {
       weakTopics: string[];
     }>;
   }>('GET', '/student/completed-tests-analytics'),
+  getCombinedAnalytics: () => request<CombinedAnalytics>('GET', '/student/combined-analytics'),
 };
 
 // ─── Token helpers ────────────────────────────────────────
@@ -593,4 +698,407 @@ export const tokenStorage = {
   set: (token: string) => localStorage.setItem('skilllab_token', token),
   get: () => localStorage.getItem('skilllab_token'),
   remove: () => localStorage.removeItem('skilllab_token'),
+};
+
+// ─── Coding Lab ───────────────────────────────────────
+
+export interface CodingBatch {
+  id: string;
+  name: string;
+  batchId: string;
+  _count?: {
+    questions: number;
+    tests: number;
+  };
+}
+
+export interface CodingQuestion {
+  id: string;
+  type: string;
+  topic: string;
+  difficulty: string;
+  title: string;
+  description: string;
+  starterCode: string | null;
+  testCases: Array<{
+    input: string;
+    expectedOutput: string;
+  }>;
+  constraints: string | null;
+  hints: string | null;
+}
+
+export interface CodingTest {
+  id: string;
+  title: string;
+  duration: number;
+  _count: {
+    questions: number;
+  };
+}
+
+export interface CodingTestWithQuestions extends CodingTest {
+  questions: Array<{
+    id: string;
+    orderIndex: number;
+    codingQuestion: CodingQuestion;
+  }>;
+}
+
+export interface CodingQuestionFull extends CodingQuestion {
+  id: string;
+  type: string;
+  topic: string;
+  difficulty: string;
+  title: string;
+  description: string;
+  starterCode: string | null;
+  buggyCode: string | null;
+  expectedOutput: string | null;
+  testCases: Array<{
+    input: string;
+    expectedOutput: string;
+  }>;
+}
+
+export interface TestCaseResult {
+  input: string;
+  output?: string;
+  expectedOutput: string;
+  actualOutput: string;
+  passed: boolean | null;
+  status: string;
+  runtime: number | null;
+  memory?: number | null;
+  error?: string;
+}
+
+export interface RunCodeResult {
+  results: TestCaseResult[];
+  status: string;
+  executionTime: number | null;
+  memory: number | null;
+  error?: string;
+  runType?: string;
+}
+
+export interface CodingAnalytics {
+  timeComplexity?: string;
+  spaceComplexity?: string;
+  optimization?: string;
+  codeQualityScore?: number;
+  suggestions?: string[];
+}
+
+export interface CodingAnalyticsAdmin {
+  problemsSolved: number;
+  accuracy: number;
+  avgRuntime: number;
+  weakTopics: string[];
+  strongTopics: string[];
+  totalSubmissions: number;
+  topicStats: Array<{
+    topic: string;
+    total: number;
+    passed: number;
+    percentage: number;
+  }>;
+}
+
+export interface CodingSubmitResult {
+  status: string;
+  passed: number;
+  total: number;
+  accuracy: number;
+  executionTime: number | null;
+  memory: number | null;
+  results: TestCaseResult[];
+  analytics?: CodingAnalytics;
+}
+
+export interface CodingAdminAnalytics {
+  totalSubmissions: number;
+  totalStudents: number;
+  avgAccuracy: number;
+  topStudents: Array<{
+    userId: string;
+    name: string;
+    accuracy: number;
+    submissions: number;
+  }>;
+  weakStudents: Array<{
+    userId: string;
+    name: string;
+    accuracy: number;
+    submissions: number;
+  }>;
+  topicBreakdown: Array<{
+    topic: string;
+    total: number;
+    passed: number;
+    percentage: number;
+  }>;
+}
+
+export interface GeneratedCodingQuestion {
+  title: string;
+  description: string;
+  starterCode: string;
+  testCases: Array<{
+    input: string;
+    output: string;
+  }>;
+}
+
+export interface AdminCodingQuestion {
+  id: string;
+  type: string;
+  topic: string;
+  difficulty: string;
+  title: string;
+  description: string;
+  starterCode: string | null;
+  testCases: Array<{
+    input: string;
+    expectedOutput: string;
+  }>;
+  createdAt: string;
+  batchName?: string;
+}
+
+export interface CodingTestAnalytics {
+  test: {
+    id: string;
+    title: string;
+    batchName: string | null;
+    duration: number;
+    totalQuestions: number;
+  };
+  overallStats: {
+    totalStudents: number;
+    attemptedStudents: number;
+    averageScore: number;
+    highestScore: number;
+    lowestScore: number;
+    passRate: number;
+    totalSubmissions: number;
+  };
+  students: Array<{
+    userId: string;
+    name: string;
+    email: string;
+    score: number;
+    correct: number;
+    wrong: number;
+    total: number;
+    accuracy: number;
+    weakTopics: string[];
+    strongTopics: string[];
+    status: string;
+    submissions: number;
+  }>;
+  questionAnalytics: Array<{
+    questionId: string;
+    title: string;
+    topic: string;
+    difficulty: string;
+    correctAttempts: number;
+    wrongAttempts: number;
+    totalAttempts: number;
+    accuracy: number;
+    difficulty: string;
+  }>;
+  mostDifficultQuestions: Array<{
+    questionId: string;
+    title: string;
+    topic: string;
+    accuracy: number;
+  }>;
+  easiestQuestions: Array<{
+    questionId: string;
+    title: string;
+    topic: string;
+    accuracy: number;
+  }>;
+  scoreDistribution: {
+    excellent: number;
+    good: number;
+    average: number;
+    needsImprovement: number;
+  };
+}
+
+export const codingApi = {
+  getBatches: () => request<CodingBatch[]>('GET', '/coding/batches'),
+
+  getStudentQuestions: () => request<CodingQuestion[]>('GET', '/student/coding/questions'),
+
+  getQuestions: (batchId?: string, type?: string) =>
+    request<CodingQuestion[]>('GET', `/coding/questions?${batchId ? `batchId=${batchId}&` : ''}${type ? `type=${type}` : ''}`),
+
+  getQuestionById: (id: string) => request<CodingQuestionFull>('GET', `/coding/question/${id}`),
+
+  getTests: (batchId?: string) =>
+    request<CodingTest[]>('GET', `/coding/tests${batchId ? `?batchId=${batchId}` : ''}`),
+
+  getTestsForStudent: () => request<CodingTest[]>('GET', '/coding/student/tests'),
+
+  getTestById: (id: string) => request<CodingTestWithQuestions>('GET', `/coding/test/${id}`),
+
+  runCode: (code: string, language: string, questionId?: string) =>
+    request<RunCodeResult>('POST', '/coding/run', { code, language, questionId }),
+
+  submitCode: (questionId: string, code: string, language: string, testId?: string) =>
+    request<CodingSubmitResult>('POST', '/coding/submit', { questionId, code, language, testId }),
+
+  getAnalytics: () => request<CodingAnalytics>('GET', '/coding/analytics'),
+
+  getStudentAnalytics: (batchId: string) => 
+    request<{
+      totalSubmissions: number;
+      totalCodingTests: number;
+      avgAccuracy: number;
+      avgRuntime: number;
+      avgMemory: number;
+      languageStats: Array<{ language: string; submissions: number; accuracy: number }>;
+      topicPerformance: Array<{ topic: string; total: number; passed: number; accuracy: number }>;
+      weakTopics: string[];
+      strongTopics: string[];
+      recentSubmissions: Array<{
+        id: string;
+        questionId: string;
+        questionTitle: string;
+        language: string;
+        passed: number;
+        total: number;
+        runtime: number | null;
+        status: string;
+        createdAt: string;
+      }>;
+    }>('GET', `/coding/student/analytics?batchId=${batchId}`),
+
+  getCodingHistory: (batchId: string) =>
+    request<Array<{
+      id: string;
+      questionId: string;
+      testId: string | null;
+      questionTitle: string;
+      topic: string;
+      difficulty: string;
+      questionType: string;
+      language: string;
+      code: string;
+      passed: number;
+      total: number;
+      runtime: number | null;
+      memory: number | null;
+      status: string;
+      createdAt: string;
+    }>>('GET', `/coding/student/history?batchId=${batchId}`),
+
+  getAdminAnalytics: (batchId?: string) =>
+    request<CodingAdminAnalytics>('GET', `/coding/admin/analytics${batchId ? `?batchId=${batchId}` : ''}`),
+
+  generateQuestion: (topic: string, difficulty: string, language: string) =>
+    request<GeneratedCodingQuestion>('POST', '/coding/admin/coding/generate', { topic, difficulty, language }),
+
+  getAdminQuestions: (batchId?: string) =>
+    request<AdminCodingQuestion[]>('GET', `/coding/admin/coding/questions${batchId ? `?batchId=${batchId}` : ''}`),
+
+  createQuestion: (data: {
+    batchId: string;
+    type: string;
+    topic: string;
+    difficulty: string;
+    title: string;
+    description: string;
+    starterCode: string;
+    testCases: Array<{ input: string; expectedOutput: string }>;
+  }) => request<AdminCodingQuestion>('POST', '/coding/admin/coding/question', data),
+
+  updateQuestion: (id: string, data: Partial<{
+    type: string;
+    topic: string;
+    difficulty: string;
+    title: string;
+    description: string;
+    starterCode: string;
+    testCases: Array<{ input: string; expectedOutput: string }>;
+  }>) => request<AdminCodingQuestion>('PUT', `/coding/admin/coding/question/${id}`, data),
+
+  deleteQuestion: (id: string) => request<void>('DELETE', `/coding/admin/coding/question/${id}`),
+
+  getTestAnalytics: (testId: string) => request<CodingTestAnalytics>('GET', `/coding/test/${testId}/analytics`),
+
+  createTest: (data: {
+    batchId: string;
+    title: string;
+    duration?: number;
+    questionIds?: string[];
+  }) => request<{ id: string }>('POST', '/coding/admin/coding/test', data),
+
+  getAdminTests: (batchId?: string) =>
+    request<Array<{
+      id: string;
+      title: string;
+      duration: number;
+      batchId: string;
+      batchName?: string;
+      _count: { questions: number };
+    }>>('GET', `/coding/admin/coding/tests${batchId ? `?batchId=${batchId}` : ''}`),
+
+  deleteTest: (id: string) => request<void>('DELETE', `/coding/admin/coding/test/${id}`),
+
+  getResultById: (submissionId: string) =>
+    request<{
+      id: string;
+      questionId: string;
+      testId: string | null;
+      code: string;
+      language: string;
+      passed: number;
+      total: number;
+      status: string;
+      runtime: string;
+      memory: string;
+      submittedAt: string;
+      question: {
+        id: string;
+        title: string;
+        description: string;
+        topic: string;
+        difficulty: string;
+        testCases: Array<{ input: string; expectedOutput: string }>;
+      };
+    }>('GET', `/coding/student/result/${submissionId}`),
+
+  getInsights: (batchId: string) =>
+    request<{
+      results: Array<{
+        id: string;
+        questionId: string;
+        passed: number;
+        total: number;
+        runtime: number | null;
+        memory: number | null;
+        status: string;
+        submittedAt: string;
+        topic: string;
+        difficulty: string;
+        type: string;
+      }>;
+      weakTopics: Record<string, number>;
+      suggestions: Array<{
+        topic: string;
+        count: number;
+        suggestion: string;
+      }>;
+      topicStats: Array<{
+        topic: string;
+        passed: number;
+        total: number;
+        accuracy: number;
+      }>;
+      totalAttempts: number;
+    }>('GET', `/coding/student/insights/${batchId}`),
 };

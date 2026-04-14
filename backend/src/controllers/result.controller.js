@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import { prisma } from '../utils/prisma.js';
 
 // GET /api/result/get  — student's own results or admin's institute results
 export async function getResults(req, res) {

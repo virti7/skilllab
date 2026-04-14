@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import { prisma } from '../utils/prisma.js';
 
 // GET /api/test/batch/:batchId
 export async function getTestsByBatch(req, res) {
@@ -374,6 +374,348 @@ export async function deleteTest(req, res) {
     return res.json({ success: true, message: 'Test deleted successfully' });
   } catch (err) {
     console.error('Delete test error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// GET /api/tests/student?batchId=...
+export async function getTestsForStudent(req, res) {
+  try {
+    const { batchId } = req.query;
+    const { id: userId, instituteId } = req.user;
+
+    // Get user's enrolled batch IDs
+    const batchStudents = await prisma.batchStudent.findMany({
+      where: { userId },
+      select: { batchId: true },
+    });
+    const enrolledBatchIds = batchStudents.map((bs) => bs.batchId);
+
+    // Get all completed test IDs with results
+    const completedTests = await prisma.result.findMany({
+      where: { userId },
+      select: { testId: true, score: true, percentage: true, totalMarks: true, submittedAt: true },
+    });
+    const completedTestMap = Object.fromEntries(
+      completedTests.map((r) => [
+        r.testId,
+        { id: r.testId, score: r.score, percentage: r.percentage, totalMarks: r.totalMarks, submittedAt: r.submittedAt },
+      ])
+    );
+    const completedTestIds = completedTests.map((r) => r.testId);
+
+    // Build where clause
+    let whereClause = {
+      isActive: true,
+      OR: [],
+    };
+
+    if (batchId) {
+      // Verify student belongs to this batch
+      if (!enrolledBatchIds.includes(batchId)) {
+        return res.status(403).json({ error: 'You are not enrolled in this batch' });
+      }
+      whereClause.OR.push({ batchId });
+    } else {
+      // All enrolled batch tests + general tests (no batch)
+      whereClause.OR.push({ batchId: { in: enrolledBatchIds } });
+      whereClause.OR.push({ batchId: null, instituteId });
+    }
+
+    const tests = await prisma.test.findMany({
+      where: whereClause,
+      include: {
+        batch: { select: { name: true } },
+        _count: { select: { questions: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Filter by batchId if specified
+    let filteredTests = tests;
+    if (batchId) {
+      filteredTests = tests.filter(t => t.batchId === batchId);
+    }
+
+    // Check for expired tests
+    const now = new Date();
+
+    const result = filteredTests.map((t) => {
+      const isCompleted = completedTestMap[t.id] !== undefined;
+      const isExpired = t.expiryDate && new Date(t.expiryDate) <= now;
+      const isUpcoming = !isCompleted && !isExpired;
+
+      return {
+        id: t.id,
+        title: t.title,
+        duration: t.duration,
+        batchId: t.batchId,
+        batchName: t.batch?.name || null,
+        questionCount: t._count.questions,
+        status: isCompleted ? 'completed' : 'upcoming',
+        result: completedTestMap[t.id] || null,
+        expiryDate: t.expiryDate,
+        isExpired,
+        isUpcoming,
+        createdAt: t.createdAt,
+      };
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error('Get tests for student error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// GET /api/tests/general - General tests not tied to any batch
+export async function getGeneralTests(req, res) {
+  try {
+    const { id: userId, instituteId } = req.user;
+
+    // Get enrolled batch IDs
+    const batchStudents = await prisma.batchStudent.findMany({
+      where: { userId },
+      select: { batchId: true },
+    });
+    const enrolledBatchIds = batchStudents.map((bs) => bs.batchId);
+
+    // Get completed test IDs
+    const completedTests = await prisma.result.findMany({
+      where: { userId },
+      select: { testId: true },
+    });
+    const completedTestIds = completedTests.map((r) => r.testId);
+
+    const tests = await prisma.test.findMany({
+      where: {
+        batchId: null,
+        instituteId,
+        isActive: true,
+        id: { notIn: completedTestIds },
+      },
+      include: {
+        _count: { select: { questions: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Filter expired
+    const now = new Date();
+    const validTests = tests.filter(t => !t.expiryDate || new Date(t.expiryDate) > now);
+
+    return res.json(
+      validTests.map((t) => ({
+        id: t.id,
+        title: t.title,
+        duration: t.duration,
+        batchId: null,
+        batchName: 'General',
+        questionCount: t._count.questions,
+        status: 'pending',
+        expiryDate: t.expiryDate,
+        isExpired: t.expiryDate ? new Date() > new Date(t.expiryDate) : false,
+        createdAt: t.createdAt,
+      }))
+    );
+  } catch (err) {
+    console.error('Get general tests error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// GET /api/tests/history - Get all test submissions for a student
+export async function getStudentTestHistory(req, res) {
+  try {
+    const { id: userId } = req.user;
+
+    const results = await prisma.result.findMany({
+      where: { userId },
+      include: {
+        test: {
+          select: {
+            id: true,
+            title: true,
+            batchId: true,
+            batch: { select: { name: true } },
+            duration: true,
+            questions: { select: { id: true } },
+          },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    const history = results.map((r) => {
+      const totalQuestions = r.test.questions.length;
+      const correctCount = r.score;
+      const wrongCount = totalQuestions - correctCount;
+      const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+
+      return {
+        submissionId: r.id,
+        testId: r.test.id,
+        testTitle: r.test.title,
+        batchId: r.test.batchId,
+        batchName: r.test.batch?.name || 'General',
+        score: r.score,
+        totalQuestions,
+        correctCount,
+        wrongCount,
+        percentage: r.percentage,
+        accuracy,
+        timeTaken: r.test.duration,
+        submittedAt: r.submittedAt,
+        type: 'normal'
+      };
+    });
+
+    const codingResults = await prisma.codingResult.findMany({
+      where: { userId },
+      include: {
+        question: {
+          select: {
+            id: true,
+            title: true,
+            topic: true,
+            difficulty: true,
+            batchId: true,
+            batch: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    const codingHistory = codingResults.map((r) => {
+      const percentage = r.total > 0 ? Math.round((r.passed / r.total) * 100) : 0;
+      const testTitle = r.question?.title || 'Coding Test';
+      const batchName = r.question?.batch?.name || 'General';
+
+      return {
+        submissionId: r.id,
+        testId: r.testId || null,
+        testTitle: testTitle,
+        batchId: r.question?.batchId || null,
+        batchName: batchName,
+        score: r.passed,
+        totalQuestions: r.total,
+        correctCount: r.passed,
+        wrongCount: r.total - r.passed,
+        percentage: percentage,
+        accuracy: percentage,
+        timeTaken: 0,
+        submittedAt: r.submittedAt,
+        type: 'coding',
+        questionId: r.question?.id,
+        questionTitle: r.question?.title,
+        questionTopic: r.question?.topic,
+        questionDifficulty: r.question?.difficulty,
+        language: r.language,
+        status: r.status,
+        runtime: r.runtime,
+        memory: r.memory
+      };
+    });
+
+    const allHistory = [...history, ...codingHistory].sort((a, b) => 
+      new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
+    );
+
+    return res.json(allHistory);
+  } catch (err) {
+    console.error('Get student test history error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// GET /api/tests/submission/:id - Get detailed analytics for a specific submission
+export async function getTestSubmissionAnalytics(req, res) {
+  try {
+    const { id: submissionId } = req.params;
+    const { id: userId } = req.user;
+
+    // Get the result with answers
+    const result = await prisma.result.findUnique({
+      where: { id: submissionId },
+      include: {
+        test: {
+          include: {
+            questions: {
+              select: {
+                id: true,
+                questionText: true,
+                optionA: true,
+                optionB: true,
+                optionC: true,
+                optionD: true,
+                correctOption: true,
+              },
+            },
+            batch: { select: { name: true } },
+          },
+        },
+        answers: true,
+      },
+    });
+
+    if (!result) {
+      return res.status(404).json({ error: 'Submission not found' });
+    }
+
+    if (result.userId !== userId) {
+      return res.status(403).json({ error: 'You can only view your own submissions' });
+    }
+
+    const total = result.test.questions.length;
+    const correct = result.score;
+    const wrong = total - correct;
+    const accuracy = Math.round((correct / total) * 100);
+
+    // Build question breakdown
+    const answerMap = Object.fromEntries(result.answers.map((a) => [a.questionId, a]));
+    const questionBreakdown = result.test.questions.map((q) => {
+      const answer = answerMap[q.id];
+      return {
+        questionId: q.id,
+        question: q.questionText,
+        options: {
+          A: q.optionA,
+          B: q.optionB,
+          C: q.optionC,
+          D: q.optionD,
+        },
+        selectedOption: answer?.selectedOption || null,
+        correctOption: q.correctOption,
+        isCorrect: answer?.isCorrect || false,
+        status: answer?.isCorrect ? 'correct' : 'wrong',
+      };
+    });
+
+    // Group topics (simplified - could be enhanced with topic data)
+    const weakTopics = [];
+    const strongTopics = [];
+
+    return res.json({
+      submissionId: result.id,
+      testId: result.test.id,
+      testTitle: result.test.title,
+      batchName: result.test.batch?.name || 'General',
+      batchId: result.test.batchId,
+      score: correct,
+      total,
+      correct,
+      wrong,
+      accuracy,
+      timeTaken: result.test.duration,
+      submittedAt: result.submittedAt,
+      percentage: result.percentage,
+      weakTopics,
+      strongTopics,
+      questionBreakdown,
+    });
+  } catch (err) {
+    console.error('Get test submission analytics error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

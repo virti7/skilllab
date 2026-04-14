@@ -1,26 +1,17 @@
 generator client {
-  provider = "prisma-client-js"
+provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+provider  = "postgresql"
+url       = env("DATABASE_URL")
 }
-
-// =============================================================================
-// ENUMS
-// =============================================================================
 
 enum Role {
-  SUPER_ADMIN
-  ADMIN
-  STUDENT
+SUPER_ADMIN
+ADMIN
+STUDENT
 }
-
-// =============================================================================
-// MODELS
-// =============================================================================
 
 model User {
   id            String         @id @default(uuid())
@@ -28,12 +19,14 @@ model User {
   password      String
   name          String
   role          Role           @default(STUDENT)
-  instituteId  String?
+  instituteId   String?
   createdAt     DateTime       @default(now())
   answers       Answer[]
   batchStudents BatchStudent[]
   results       Result[]
-  institute    Institute?     @relation(fields: [instituteId], references: [id])
+  codingResults CodingResult[]
+  institute     Institute?     @relation(fields: [instituteId], references: [id])
+  testAttempts  TestAttempt[]
 
   @@index([email])
   @@index([instituteId])
@@ -41,118 +34,234 @@ model User {
 }
 
 model Institute {
-  id        String   @id @default(uuid())
-  name      String
-  createdAt DateTime @default(now())
-  batches   Batch[]
-  tests     Test[]
-  users     User[]
+id        String   @id @default(uuid())
+name      String
+createdAt DateTime @default(now())
+batches   Batch[]
+tests     Test[]
+users     User[]
 
-  @@map("institutes")
+@@map("institutes")
 }
 
 model Batch {
-  id            String         @id @default(uuid())
-  name          String
-  inviteCode    String         @unique
-  instituteId   String
-  createdAt     DateTime       @default(now())
+id               String         @id @default(uuid())
+name             String
+inviteCode       String         @unique
+instituteId      String
+createdAt        DateTime       @default(now())
 
-  batchStudents BatchStudent[]
+batchStudents    BatchStudent[]
+institute        Institute      @relation(fields: [instituteId], references: [id])
+tests            Test[]
 
-  institute     Institute      @relation(fields: [instituteId], references: [id])
-  tests         Test[]
+codingQuestions  CodingQuestion[]
+codingTests      CodingTest[]
 
-  @@index([instituteId])
-  @@map("batches")
+@@index([instituteId])
+@@map("batches")
 }
 
 model BatchStudent {
-  id       String   @id @default(uuid())
-  batchId  String
-  userId   String
-  joinedAt DateTime @default(now())
-  batch    Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+id       String   @id @default(uuid())
+batchId  String
+userId   String
+joinedAt DateTime @default(now())
 
-  @@unique([batchId, userId])
-  @@index([userId])
-  @@index([batchId])
-  @@map("batch_students")
+batch    Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+@@unique([batchId, userId])
+@@index([userId])
+@@index([batchId])
+@@map("batch_students")
 }
 
 model Test {
-  id           String      @id @default(uuid())
-  title        String
-  duration    Int         @default(30)
-  instituteId String
-  batchId     String?
-  expiryDate  DateTime?
-  createdBy   String?
-  isActive    Boolean    @default(true)
-  createdAt   DateTime    @default(now())
-  questions   Question[]
-  results     Result[]
-  batch       Batch?     @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  institute  Institute   @relation(fields: [instituteId], references: [id], onDelete: Restrict)
+id           String      @id @default(uuid())
+title        String
+duration     Int         @default(30)
+instituteId  String
+batchId      String?
+expiryDate   DateTime?
+createdBy    String?
+isActive     Boolean     @default(true)
+createdAt    DateTime    @default(now())
 
-  @@index([batchId])
-  @@index([instituteId])
-  @@index([createdAt])
-  @@map("tests")
+questions    Question[]
+results      Result[]
+
+batch        Batch?     @relation(fields: [batchId], references: [id], onDelete: SetNull)
+institute    Institute  @relation(fields: [instituteId], references: [id], onDelete: Restrict)
+
+@@index([batchId])
+@@index([instituteId])
+@@index([createdAt])
+@@map("tests")
 }
 
 model Question {
-  id            String    @id @default(uuid())
-  testId        String
-  questionText String
-  optionA      String
-  optionB      String
-  optionC      String
-  optionD      String
-  correctOption String
-  topic        String?
-  createdAt     DateTime  @default(now())
-  answers      Answer[]
-  test         Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
+id            String    @id @default(uuid())
+testId        String
+questionText  String
+optionA       String
+optionB       String
+optionC       String
+optionD       String
+correctOption String
+topic         String?
+createdAt     DateTime  @default(now())
 
-  @@index([testId])
-  @@map("questions")
+answers       Answer[]
+test          Test      @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+@@index([testId])
+@@map("questions")
 }
 
 model Result {
-  id             String   @id @default(uuid())
-  userId         String
-  testId         String
-  score          Int      @default(0)
-  totalMarks     Int      @default(0)
-  totalQuestions Int     @default(0)
-  percentage    Float
+id             String   @id @default(uuid())
+userId         String
+testId         String
+score          Int      @default(0)
+totalMarks     Int      @default(0)
+totalQuestions Int      @default(0)
+percentage     Float
+submittedAt    DateTime @default(now())
+
+answers        Answer[]
+test           Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+@@unique([userId, testId])
+@@index([userId])
+@@index([testId])
+@@index([userId, testId])
+@@map("results")
+}
+
+model Answer {
+id             String   @id @default(uuid())
+resultId       String
+questionId     String
+selectedOption String
+isCorrect      Boolean
+userId         String
+
+question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+result         Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
+user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+@@index([resultId])
+@@index([questionId])
+@@index([userId])
+@@map("answers")
+}
+
+// ================= CODING =================
+
+model CodingQuestion {
+id              String   @id @default(cuid())
+batchId         String
+type            String   @default("practice")
+topic           String
+difficulty      String   @default("easy")
+title           String
+description     String
+
+language        String   @default("java")
+
+starterCode     String?
+buggyCode       String?  @default("")
+expectedOutput  String?
+
+testCases       Json
+hints           String?
+
+createdAt       DateTime @default(now())
+
+batch           Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+results         CodingResult[]
+testQuestions   CodingTestQuestion[]
+
+@@index([batchId])
+@@map("coding_questions")
+}
+
+model CodingTest {
+  id              String   @id @default(cuid())
+  codingBatchId   String
+  title           String
+  duration        Int      @default(60)
+  createdAt       DateTime @default(now())
+
+  batch           Batch    @relation(fields: [codingBatchId], references: [id], onDelete: Cascade)
+
+  questions       CodingTestQuestion[]
+  attempts        TestAttempt[]
+
+  @@index([codingBatchId])
+  @@map("coding_tests")
+}
+
+model CodingTestQuestion {
+id                String   @id @default(cuid())
+codingTestId      String
+codingQuestionId  String
+orderIndex        Int      @default(0)
+
+codingTest        CodingTest     @relation(fields: [codingTestId], references: [id], onDelete: Cascade)
+codingQuestion    CodingQuestion @relation(fields: [codingQuestionId], references: [id], onDelete: Cascade)
+
+@@unique([codingTestId, codingQuestionId])
+@@index([codingTestId])
+@@index([codingQuestionId])
+@@map("coding_test_questions")
+}
+
+model CodingResult {
+  id            String   @id @default(cuid())
+  userId        String
+  questionId    String
+  testId        String?
+
+  code          String
+  language      String
+
+  passed        Int      @default(0)
+  total         Int      @default(0)
+
+  runtime       Float?
+  memory        Float?
+  output        String?
+
+  status        String   @default("success")
+
   submittedAt   DateTime @default(now())
-  answers       Answer[]
-  test          Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question      CodingQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([questionId])
+  @@index([testId])
+  @@map("coding_results")
+}
+
+model TestAttempt {
+  id            String   @id @default(cuid())
+  userId        String
+  testId        String
+  status        String   @default("in_progress")
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+
+  test          CodingTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, testId])
   @@index([userId])
   @@index([testId])
-  @@index([userId, testId])
-  @@map("results")
-}
-
-model Answer {
-  id             String   @id @default(uuid())
-  resultId       String
-  questionId     String
-  selectedOption String
-  isCorrect      Boolean
-  userId         String
-  question       Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  result         Result   @relation(fields: [resultId], references: [id], onDelete: Cascade)
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([resultId])
-  @@index([questionId])
-  @@index([userId])
-  @@map("answers")
+  @@map("test_attempts")
 }

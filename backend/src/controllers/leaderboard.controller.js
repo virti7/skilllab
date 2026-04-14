@@ -1,4 +1,4 @@
-import prisma from '../utils/prisma.js';
+import { prisma } from '../utils/prisma.js';
 
 // GET /api/leaderboard  — overall or batch-wise
 export async function getLeaderboard(req, res) {

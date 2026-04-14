@@ -13,6 +13,8 @@ import {
   BarChart3,
   Layers,
   ChevronRight,
+  Code2,
+  History,
 } from "lucide-react";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -48,6 +50,7 @@ const menusByRole: Record<UserRole, MenuSection[]> = {
         { title: "Batches", icon: Layers, path: "/admin/batches" },
         { title: "Students", icon: Users, path: "/admin/students" },
         { title: "Tests", icon: BookOpen, path: "/admin/tests" },
+        { title: "Coding Lab", icon: Code2, path: "/admin/coding" },
       ],
     },
     {
@@ -64,6 +67,8 @@ const menusByRole: Record<UserRole, MenuSection[]> = {
       items: [
         { title: "Dashboard", icon: LayoutDashboard, path: "/student" },
         { title: "My Courses", icon: BookOpen, path: "/student/tests" },
+        { title: "Test History", icon: History, path: "/student/test-history" },
+        { title: "Coding Lab", icon: Code2, path: "/student/coding" },
       ],
     },
     {

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import prisma from './src/utils/prisma.js';
+import { prisma } from './src/utils/prisma.js';
 import bcrypt from 'bcrypt';
 
 console.log('DATABASE_URL:', process.env.DATABASE_URL?.substring(0, 50) + '...');

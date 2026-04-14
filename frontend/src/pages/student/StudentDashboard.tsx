@@ -1,9 +1,8 @@
 import { AppLayout } from "@/components/AppLayout";
 import { RightPanel } from "@/components/RightPanel";
-import { topicBreakdown } from "@/data/dummy";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { Download, FileText, Loader2, Sparkles, TrendingUp, Award, BookOpen, ArrowRight, Clock, Target, Trophy } from "lucide-react";
+import { Download, FileText, Loader2, Sparkles, TrendingUp, TrendingDown, Award, BookOpen, ArrowRight, Clock, Target, Trophy, History } from "lucide-react";
 import {
   CartesianGrid,
   Tooltip,
@@ -108,6 +107,7 @@ export default function StudentDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [topicData, setTopicData] = useState<Array<{ topic: string; total: number; correct: number; percentage: number }>>([]);
   const [topicLoading, setTopicLoading] = useState(true);
+  const [topicSort, setTopicSort] = useState<'strongest' | 'weakest'>('strongest');
 
   useEffect(() => {
     dashboardApi
@@ -131,6 +131,10 @@ export default function StudentDashboard() {
       .catch((err) => console.error("Topic breakdown error:", err))
       .finally(() => setTopicLoading(false));
   }, []);
+
+  const sortedTopics = [...topicData].sort((a, b) => {
+    return topicSort === 'strongest' ? b.percentage - a.percentage : a.percentage - b.percentage;
+  });
 
   if (loading) {
     return (
@@ -251,6 +255,13 @@ export default function StudentDashboard() {
             <Download className="w-4 h-4" />
             Download Report
           </button>
+          <Link
+            to="/student/test-history"
+            className="inline-flex items-center gap-2 border border-border text-foreground text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-secondary transition-all duration-200"
+          >
+            <History className="w-4 h-4" />
+            Test History
+          </Link>
         </div>
       </div>
 
@@ -382,41 +393,86 @@ export default function StudentDashboard() {
                       <Award className="w-4 h-4 text-primary" />
                       Topic Breakdown
                     </h3>
-                  </div>
-                  <div className="space-y-4">
-                    {(topicLoading ? topicBreakdown : topicData).map((t, i) => {
-                      const percentage = topicLoading ? t.score : t.percentage;
-                      const getColor = (pct: number) => {
-                        if (pct >= 75) return "text-success";
-                        if (pct >= 50) return "text-warning";
-                        return "text-destructive";
-                      };
-                      const getBarColor = (pct: number) => {
-                        if (pct >= 75) return "#22c55e";
-                        if (pct >= 50) return "#f59e0b";
-                        return "#ef4444";
-                      };
-                      return (
-                      <div key={topicLoading ? t.topic : t.topic} className="group">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-sm text-foreground font-medium">{t.topic}</span>
-                          <span className="text-sm font-bold" style={{ color: getColor(percentage) }}>
-                            {percentage}%
-                          </span>
-                        </div>
-                        <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500 ease-out"
-                            style={{
-                              width: `${percentage}%`,
-                              backgroundColor: getBarColor(percentage),
-                              transitionDelay: `${i * 100}ms`
-                            }}
-                          />
-                        </div>
+                    {topicData.length > 1 && (
+                      <div className="flex items-center gap-1 bg-secondary/50 p-0.5 rounded-lg">
+                        <button
+                          onClick={() => setTopicSort('strongest')}
+                          className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                            topicSort === 'strongest' 
+                              ? 'bg-card text-foreground shadow-sm' 
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <TrendingUp className="w-3 h-3 inline mr-1" />
+                          Strongest
+                        </button>
+                        <button
+                          onClick={() => setTopicSort('weakest')}
+                          className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
+                            topicSort === 'weakest' 
+                              ? 'bg-card text-foreground shadow-sm' 
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <TrendingDown className="w-3 h-3 inline mr-1" />
+                          Weakest
+                        </button>
                       </div>
-                    );})}
+                    )}
                   </div>
+                  {topicLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="h-4 bg-muted rounded w-20 mb-2"></div>
+                          <div className="h-2 bg-muted rounded-full"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : topicData.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
+                        <Award className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">No topic data available</p>
+                      <p className="text-xs text-muted-foreground mt-1">Complete tests to see topic performance</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {sortedTopics.map((t, i) => {
+                        const getColor = (pct: number) => {
+                          if (pct >= 75) return "text-success";
+                          if (pct >= 50) return "text-warning";
+                          return "text-destructive";
+                        };
+                        const getBarColor = (pct: number) => {
+                          if (pct >= 75) return "#22c55e";
+                          if (pct >= 50) return "#f59e0b";
+                          return "#ef4444";
+                        };
+                        return (
+                          <div key={t.topic} className="group">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm text-foreground font-medium">{t.topic}</span>
+                              <span className="text-sm font-bold" style={{ color: getColor(t.percentage) }}>
+                                {t.percentage}%
+                              </span>
+                            </div>
+                            <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500 ease-out"
+                                style={{
+                                  width: `${t.percentage}%`,
+                                  backgroundColor: getBarColor(t.percentage),
+                                  transitionDelay: `${i * 100}ms`
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 

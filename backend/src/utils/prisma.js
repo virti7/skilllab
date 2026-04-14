@@ -12,4 +12,4 @@ if (!globalForPrisma.prisma) {
   globalForPrisma.prisma = createPrismaClient();
 }
 
-export default globalForPrisma.prisma;
+export const prisma = globalForPrisma.prisma;
