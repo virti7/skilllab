@@ -38,6 +38,7 @@ import StudentCourseDetail from './pages/student/StudentCourseDetail';
 import TestPage from './pages/TestPage';
 import TestResultPage from './pages/student/TestResultPage';
 import CodingLab from './pages/student/CodingLab';
+import BatchCodingPage from './pages/student/BatchCodingPage';
 import CodingIDE from './pages/student/CodingIDE';
 import CodingTestPage from './pages/student/CodingTestPage';
 import StudentCodingAnalytics from './pages/student/StudentCodingAnalytics';
@@ -99,7 +100,7 @@ const App = () => (
             <Route path='/student/test-page' element={<Stu><TestPage /></Stu>} />
             <Route path='/student/test-result/:testId' element={<Stu><TestResultPage /></Stu>} />
             <Route path='/student/coding' element={<Stu><CodingLab /></Stu>} />
-            <Route path='/student/coding/:batchId' element={<Stu><CodingLab /></Stu>} />
+            <Route path='/student/coding/:batchId' element={<Stu><BatchCodingPage /></Stu>} />
             <Route path='/student/coding/question/:questionId' element={<Stu><CodingIDE /></Stu>} />
             <Route path='/student/coding/test/:testId' element={<Stu><CodingTestPage /></Stu>} />
             <Route path='/student/coding/analytics' element={<Stu><StudentCodingAnalytics /></Stu>} />

@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { RightPanel } from "@/components/RightPanel";
 import { batchApi, Batch } from "@/lib/api";
 import { codingApi, AdminCodingQuestion } from "@/lib/api";
-import { Loader2, Code2, Plus, Trash2, Edit, Sparkles, X } from "lucide-react";
+import { Loader2, Code2, Plus, Trash2, Edit, Sparkles, X, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useToast } from "@/components/ui/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface TestCase {
   input: string;
@@ -60,6 +70,8 @@ export default function CodingQuestions() {
   const [generating, setGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
   const [form, setForm] = useState<CodingQuestionForm>(initialForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [aiParams, setAiParams] = useState({
@@ -199,14 +211,22 @@ export default function CodingQuestions() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to delete this question?")) return;
+  async function handleDeleteClick(id: string) {
+    setDeletingQuestionId(id);
+    setDeleteDialogOpen(true);
+  }
+  
+  async function confirmDelete() {
+    if (!deletingQuestionId) return;
     try {
-      await codingApi.deleteQuestion(id);
+      await codingApi.deleteQuestion(deletingQuestionId);
       toast({ title: "Question deleted" });
       loadData();
     } catch (err: any) {
       toast({ title: "Failed to delete", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingQuestionId(null);
     }
   }
 
@@ -315,7 +335,7 @@ export default function CodingQuestions() {
                     <Button variant="ghost" size="sm" onClick={() => openEdit(q)}>
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(q.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteClick(q.id)}>
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
                   </td>
@@ -534,6 +554,29 @@ export default function CodingQuestions() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Delete Question
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this question? This action cannot be undone and all submissions will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { RightPanel } from "@/components/RightPanel";
 import { codingApi, batchApi, Batch } from "@/lib/api";
-import { Loader2, FileCode, Plus, Trash2, Clock, Users, BarChart3 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, FileCode, Plus, Trash2, Clock, Users, BarChart3, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -51,11 +62,14 @@ interface FormData {
 
 export default function CodingTests() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [tests, setTests] = useState<AdminCodingTest[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingTestId, setDeletingTestId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>({
     batchId: "",
     title: "",
@@ -103,14 +117,24 @@ export default function CodingTests() {
     }
   }
 
-  async function handleDelete(testId: string) {
-    if (!confirm("Are you sure you want to delete this test?")) return;
+  async function handleDeleteClick(testId: string) {
+    setDeletingTestId(testId);
+    setDeleteDialogOpen(true);
+  }
+  
+  async function confirmDelete() {
+    if (!deletingTestId) return;
     
     try {
-      await codingApi.deleteTest(testId);
+      await codingApi.deleteTest(deletingTestId);
       await loadData();
+      toast({ title: "Test deleted successfully" });
     } catch (err) {
       console.error("Failed to delete test:", err);
+      toast({ title: "Failed to delete test", variant: "destructive" });
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingTestId(null);
     }
   }
 
@@ -250,7 +274,7 @@ export default function CodingTests() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(test.id)}
+                        onClick={() => handleDeleteClick(test.id)}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
@@ -262,6 +286,29 @@ export default function CodingTests() {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Delete Test
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this test? This action cannot be undone and all submissions will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
