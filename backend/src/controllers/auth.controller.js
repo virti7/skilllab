@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import prisma from '../utils/prisma.js';
+import { prisma } from '../utils/prisma.js';
 
 function generateToken(user) {
   return jwt.sign(

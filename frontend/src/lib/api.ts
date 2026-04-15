@@ -327,10 +327,10 @@ export interface SubmitResult {
 }
 
 export const testApi = {
-  create: (data: { 
-    title: string; 
-    duration?: number; 
-    batchId?: string; 
+  create: (data: {
+    title: string;
+    duration?: number;
+    batchId?: string;
     questions: NewQuestion[];
     expiryDate?: string;
   }) =>
@@ -344,14 +344,14 @@ export const testApi = {
 
   getUpcoming: () => request<UpcomingTest[]>('GET', '/test/upcoming'),
 
-  getStudentTests: (batchId?: string) => 
+  getStudentTests: (batchId?: string) =>
     request<TestSummary[]>('GET', `/test/student${batchId ? `?batchId=${batchId}` : ''}`),
 
   getGeneral: () => request<TestSummary[]>('GET', '/test/general'),
 
   getHistory: () => request<TestStudentHistory[]>('GET', '/test/history'),
 
-  getSubmissionAnalytics: (submissionId: string) => 
+  getSubmissionAnalytics: (submissionId: string) =>
     request<TestSubmissionAnalytics>('GET', `/test/submission/${submissionId}`),
 
   submit: (testId: string, answers: { questionId: string; selectedOption: string }[]) =>
@@ -906,7 +906,7 @@ export interface CodingTestAnalytics {
     wrongAttempts: number;
     totalAttempts: number;
     accuracy: number;
-    difficulty: string;
+
   }>;
   mostDifficultQuestions: Array<{
     questionId: string;
@@ -953,7 +953,7 @@ export const codingApi = {
 
   getAnalytics: () => request<CodingAnalytics>('GET', '/coding/analytics'),
 
-  getStudentAnalytics: (batchId: string) => 
+  getStudentAnalytics: (batchId: string) =>
     request<{
       totalSubmissions: number;
       totalCodingTests: number;
@@ -1101,4 +1101,122 @@ export const codingApi = {
       }>;
       totalAttempts: number;
     }>('GET', `/coding/student/insights/${batchId}`),
+};
+
+// ─── Practice Sheets ───────────────────────────────────────
+
+export interface PracticeSheetBatch {
+  id: string;
+  name: string;
+  inviteCode?: string;
+  studentCount: number;
+  createdAt?: string;
+}
+
+export interface MCQQuestion {
+  id: string;
+  questionText: string;
+  optionA: string;
+  optionB: string;
+  optionC: string;
+  optionD: string;
+  correctOption: string;
+  topic: string | null;
+  type: 'mcq';
+  marks?: number;
+}
+
+export interface CodingQuestion {
+  id: string;
+  title: string;
+  description: string;
+  starterCode?: string | null;
+  solutionCode?: string | null;
+  solution?: string;
+  testCases: Array<{ input: string; output: string }>;
+  difficulty: string | null;
+  topic: string | null;
+  type: 'coding';
+  marks?: number;
+  constraints?: string;
+  hints?: string[];
+  language?: string;
+}
+
+export interface DebugQuestion {
+  id: string;
+  title: string;
+  description: string;
+  buggyCode: string | null;
+  expectedOutput: string | null;
+  solutionCode: string | null;
+  testCases: unknown[];
+  difficulty: string | null;
+  topic: string | null;
+  hints: string[] | null;
+  type: 'debug';
+  marks?: number;
+}
+
+export interface PracticeSheetOptions {
+  includeAnswerKey: boolean;
+  includeWriteSpace: boolean;
+  showDifficulty: boolean;
+  showStudentInfo: boolean;
+  showMarksPerQuestion: boolean;
+}
+
+export interface GeneratedPracticeSheet {
+  sheetType: string;
+  instituteName: string;
+  sheetTitle: string;
+  totalMarks: number;
+  topics: string[];
+  batchName?: string | null;
+  difficulties: string[];
+  codingLanguage?: string;
+  options: PracticeSheetOptions;
+  mcq: MCQQuestion[];
+  coding: CodingQuestion[];
+  debug: DebugQuestion[];
+}
+
+export interface BatchDetails {
+  batchId: string;
+  batchName: string;
+  topics: string[];
+  topicCounts: Record<string, number>;
+  testCount: number;
+  questionCount: number;
+}
+
+export type SheetType = 'mcq' | 'coding' | 'debug' | 'mixed';
+
+export const practiceSheetsApi = {
+  getBatches: () => request<PracticeSheetBatch[]>('GET', '/practice-sheets/batches'),
+
+  getTopics: () => request<string[]>('GET', '/practice-sheets/topics'),
+
+  getBatchDetails: (batchId: string) => request<BatchDetails>('GET', `/practice-sheets/batch-details/${batchId}`),
+
+  generateSheet: (data: {
+    sheetType: SheetType;
+    instituteName?: string;
+    sheetTitle?: string;
+    totalMarks?: number;
+    topics?: string[];
+    difficulties?: string[];
+    includeAnswerKey?: boolean;
+    includeWriteSpace?: boolean;
+    showDifficulty?: boolean;
+    showStudentInfo?: boolean;
+    showMarksPerQuestion?: boolean;
+    batchId?: string;
+    mcqCount?: number;
+    codingCount?: number;
+    debugCount?: number;
+    codingLanguage?: string;
+    concepts?: string[];
+    curriculum?: string[];
+  }) => request<GeneratedPracticeSheet>('POST', '/practice-sheets/generate', data),
 };

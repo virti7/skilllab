@@ -23,6 +23,7 @@ import AdminStudents from './pages/admin/Students';
 import AdminTests from './pages/admin/AdminTests';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
 import StudentAnalytics from './pages/admin/StudentAnalytics';
+import PracticeSheets from './pages/admin/PracticeSheets';
 import Leaderboard from './pages/Leaderboard';
 import CodingQuestions from './pages/admin/CodingQuestions';
 import CodingTests from './pages/admin/CodingTests';
@@ -81,6 +82,7 @@ const App = () => (
             <Route path='/admin/students' element={<Admin><AdminStudents /></Admin>} />
             <Route path='/admin/student/:id' element={<Admin><StudentAnalytics /></Admin>} />
             <Route path='/admin/tests' element={<Admin><AdminTests /></Admin>} />
+            <Route path="/admin/practice-sheets" element={<Admin><PracticeSheets /></Admin>} />
             <Route path='/admin/leaderboard' element={<Admin><Leaderboard /></Admin>} />
             <Route path='/admin/analytics' element={<Admin><AdminAnalytics /></Admin>} />
             <Route path='/admin/coding' element={<Admin><CodingQuestions /></Admin>} />

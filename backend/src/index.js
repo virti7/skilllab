@@ -16,6 +16,7 @@ import aiRoutes from './routes/ai.routes.js';
 import testAnalyticsRoutes from './routes/testAnalytics.routes.js';
 import testResultRoutes from './routes/testResult.routes.js';
 import studentRoutes from './routes/student.routes.js';
+import practiceSheetsRoutes from './routes/practiceSheets.routes.js';
 import codingRoutes from './routes/coding.routes.js';
 import compilerRoutes from './routes/compiler.routes.js';
 
@@ -47,6 +48,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/coding', codingRoutes);
 app.use('/api/compiler', compilerRoutes);
+app.use('/api/practice-sheets', practiceSheetsRoutes);
 
 // 404 handler
 app.use((req, res) => {

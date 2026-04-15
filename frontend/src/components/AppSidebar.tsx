@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Code2,
   History,
+  FileText,
 } from "lucide-react";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -51,6 +52,7 @@ const menusByRole: Record<UserRole, MenuSection[]> = {
         { title: "Students", icon: Users, path: "/admin/students" },
         { title: "Tests", icon: BookOpen, path: "/admin/tests" },
         { title: "Coding Lab", icon: Code2, path: "/admin/coding" },
+        { title: "Practice Sheets", icon: FileText, path: "/admin/practice-sheets" }
       ],
     },
     {
@@ -130,10 +132,9 @@ export function AppSidebar() {
                     className={`
                       group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
                       transition-all duration-200 relative
-                      ${
-                        isActive
-                          ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary"
-                          : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                      ${isActive
+                        ? "bg-gradient-to-r from-primary/10 to-primary/5 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
                       }
                     `}
                   >

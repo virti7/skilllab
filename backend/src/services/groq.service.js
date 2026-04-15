@@ -422,6 +422,134 @@ Return ONLY JSON:`;
   }
 }
 
+export async function generatePracticeSheetMCQs(
+  curriculum,
+  concepts,
+  difficulties,
+  numberOfQuestions
+) {
+  const curriculumStr = curriculum && curriculum.length > 0 ? curriculum.join(', ') : '';
+  const conceptsStr = concepts && concepts.length > 0 ? concepts.join(', ') : '';
+  const combinedTopics = curriculumStr + (curriculumStr && conceptsStr ? ' | ' : '') + conceptsStr;
+  
+  const difficultiesStr = difficulties && difficulties.length > 0 
+    ? difficulties.filter(d => d !== 'mixed').join(', ') 
+    : 'medium';
+
+  const prompt = `Generate ${numberOfQuestions} multiple choice questions for a practice sheet.
+
+CURRICULUM/SYLLABUS: ${combinedTopics || 'General Programming'}
+DIFFICULTY LEVELS: ${difficultiesStr}
+
+Generate ONLY valid JSON array. No markdown, no explanations, no code blocks. Return ONLY the JSON array.
+
+Each question must follow this exact format:
+{
+  "question": "The question text here",
+  "options": {
+    "A": "First option",
+    "B": "Second option",
+    "C": "Third option",
+    "D": "Fourth option"
+  },
+  "correctAnswer": "A",
+  "topic": "Specific topic from curriculum"
+}
+
+Rules:
+- Questions MUST be based on the curriculum/syllabus provided above
+- Include concepts from: ${combinedTopics}
+- Mix difficulty levels: easy (30%), medium (40%), hard (30%)
+- Each question should have a "topic" field matching one of the curriculum items
+- Options should be plausible and related to the topic
+- Ensure only ONE correct answer
+- Distribute correct answers across A, B, C, D evenly
+- Questions should test genuine understanding
+- Make questions clear and unambiguous for students
+
+Return JSON array:`;
+
+  try {
+    const { response, data } = await makeRequest({
+      messages: [
+        {
+          role: 'system',
+          content: 'You are an expert educational content creator. Generate high-quality MCQ questions based on the provided curriculum in valid JSON format only.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 8192,
+    });
+
+    if (!response.ok) {
+      const errorMsg = data?.error?.message || data?.error?.type || response.statusText;
+      console.error('Groq API Error:', { status: response.status, error: data });
+      throw new Error('AI service temporarily unavailable');
+    }
+
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error('No content in Groq API response');
+    }
+
+    let cleanedContent = content.trim();
+    if (cleanedContent.startsWith('```json')) {
+      cleanedContent = cleanedContent.slice(7);
+    } else if (cleanedContent.startsWith('```')) {
+      cleanedContent = cleanedContent.slice(3);
+    }
+    if (cleanedContent.endsWith('```')) {
+      cleanedContent = cleanedContent.slice(0, -3);
+    }
+    cleanedContent = cleanedContent.trim();
+
+    try {
+      const questions = JSON.parse(cleanedContent);
+      if (!Array.isArray(questions)) {
+        throw new Error('AI returned invalid response format (not an array)');
+      }
+
+      const validQuestions = questions.filter((q) => {
+        if (typeof q !== 'object' || q === null) return false;
+        return (
+          typeof q.question === 'string' &&
+          q.question.length > 0 &&
+          typeof q.options === 'object' &&
+          q.options !== null &&
+          ['A', 'B', 'C', 'D'].every((opt) => typeof q.options[opt] === 'string') &&
+          ['A', 'B', 'C', 'D'].includes(q.correctAnswer)
+        );
+      });
+
+      if (validQuestions.length === 0) {
+        throw new Error('AI generated no valid questions');
+      }
+
+      return validQuestions.map((q) => ({
+        question: q.question,
+        options: {
+          A: q.options.A,
+          B: q.options.B,
+          C: q.options.C,
+          D: q.options.D,
+        },
+        correctAnswer: q.correctAnswer.toUpperCase(),
+        topic: q.topic || 'General',
+      }));
+    } catch (err) {
+      console.error('Failed to parse questions JSON:', cleanedContent);
+      throw new Error('Failed to parse AI-generated questions as JSON');
+    }
+  } catch (error) {
+    console.error('Groq API error:', error);
+    throw new Error('AI service temporarily unavailable');
+  }
+}
+
 export async function generateCodingQuestion(topic, difficulty, language) {
   const languageMap = {
     c: 'C',
