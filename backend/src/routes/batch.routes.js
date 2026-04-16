@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createBatch, joinBatch, getBatches, getBatchStudents, getAdminBatches, getStudentBatches } from '../controllers/batch.controller.js';
+import { createBatch, joinBatch, getBatches, getBatchStudents, getAdminBatches, getStudentBatches, deleteBatch } from '../controllers/batch.controller.js';
 import { getBatchAnalytics } from '../controllers/batchAnalytics.controller.js';
 import { authenticate, requireRole } from '../middleware/auth.middleware.js';
 
@@ -15,5 +15,6 @@ router.get('/admin/batches', requireRole('ADMIN', 'SUPER_ADMIN'), getAdminBatche
 router.get('/student/batches', requireRole('STUDENT'), getStudentBatches);
 router.get('/:id/students', requireRole('ADMIN', 'SUPER_ADMIN'), getBatchStudents);
 router.get('/:id/analytics', requireRole('ADMIN', 'SUPER_ADMIN'), getBatchAnalytics);
+router.delete('/:batchId', requireRole('ADMIN', 'SUPER_ADMIN'), deleteBatch);
 
 export default router;

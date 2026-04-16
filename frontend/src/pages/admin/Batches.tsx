@@ -1,9 +1,20 @@
 import { AppLayout } from "@/components/AppLayout";
-import { Plus, Loader2, Copy, Check, Users, BookOpen, BarChart3 } from "lucide-react";
+import { Plus, Loader2, Copy, Check, Users, BookOpen, BarChart3, Trash2, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { batchApi, Batch } from "@/lib/api";
 import { batches as dummyBatches } from "@/data/dummy";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const statusColor = {
   active: "bg-card-green",
@@ -20,6 +31,9 @@ export default function Batches() {
   const [batchName, setBatchName] = useState("");
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [batchToDelete, setBatchToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadBatches();
@@ -70,6 +84,29 @@ export default function Batches() {
     navigator.clipboard.writeText(code);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  function openDeleteModal(batchId: string, batchName: string) {
+    setBatchToDelete({ id: batchId, name: batchName });
+    setDeleteModalOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!batchToDelete) return;
+
+    setDeleting(true);
+    try {
+      await batchApi.delete(batchToDelete.id);
+      setBatches((prev) => prev.filter((b) => b.id !== batchToDelete.id));
+      toast.success("Batch deleted successfully");
+      setDeleteModalOpen(false);
+      setBatchToDelete(null);
+    } catch (err) {
+      console.error("Delete batch error:", err);
+      toast.error("Failed to delete batch");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -178,21 +215,91 @@ export default function Batches() {
                     </button>
                   </div>
                 )}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/admin/batch/${b.id}`);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors ml-auto"
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Analytics
-                </button>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDeleteModal(b.id, b.name);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/admin/batch/${b.id}`);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Analytics
+                  </button>
+                </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={deleteModalOpen} onOpenChange={setDeleteModalOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+              </div>
+              <AlertDialogTitle className="text-xl">Delete Batch</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-base">
+              Are you sure you want to delete <span className="font-semibold text-foreground">"{batchToDelete?.name}"</span>?
+              <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-xl border border-amber-200 dark:border-amber-800">
+                <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-2">This will permanently remove:</p>
+                <ul className="text-sm text-amber-700 dark:text-amber-300 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    All tests and questions
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    All coding questions
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    All student records
+                  </li>
+                </ul>
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground font-medium">This action cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="mt-0">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                confirmDelete();
+              }}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Batch
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }

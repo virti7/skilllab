@@ -116,6 +116,9 @@ export const batchApi = {
 
   getAnalytics: (batchId: string) =>
     request<BatchAnalyticsResponse>('GET', `/batch/${batchId}/analytics`),
+
+  delete: (batchId: string) =>
+    request<{ message: string }>('DELETE', `/batch/${batchId}`),
 };
 
 export interface StudentAnalytics {
@@ -450,7 +453,35 @@ export interface StudentDashboardData {
 export const dashboardApi = {
   admin: () => request<AdminDashboardData>('GET', '/dashboard/admin'),
   student: () => request<StudentDashboardData>('GET', '/dashboard/student'),
+  getBatchPerformance: () => request<BatchPerformanceResponse>('GET', '/dashboard/batch-performance'),
 };
+
+export interface BatchPerformanceData {
+  batchId: string;
+  batchName: string;
+  avgScore: number;
+  totalStudents: number;
+  totalTests: number;
+  totalSubmissions: number;
+}
+
+export interface BatchPerformanceSummary {
+  totalBatches: number;
+  bestBatch: { name: string; score: number } | null;
+  worstBatch: { name: string; score: number } | null;
+  overallAvg: number;
+}
+
+export interface BatchPerformanceTrend {
+  week: string;
+  avgScore: number;
+}
+
+export interface BatchPerformanceResponse {
+  batches: BatchPerformanceData[];
+  summary: BatchPerformanceSummary;
+  trend: BatchPerformanceTrend[];
+}
 
 // ─── Admin Students ─────────────────────────────────────
 

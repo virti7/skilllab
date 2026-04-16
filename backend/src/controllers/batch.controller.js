@@ -244,3 +244,50 @@ export async function getStudentBatches(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+// DELETE /api/batch/:batchId
+export async function deleteBatch(req, res) {
+  try {
+    const { batchId } = req.params;
+    const { instituteId, role } = req.user;
+
+    const batch = await prisma.batch.findUnique({
+      where: { id: batchId },
+      select: { instituteId: true },
+    });
+
+    if (!batch) {
+      return res.status(404).json({ error: 'Batch not found' });
+    }
+
+    if (role === 'ADMIN' && batch.instituteId !== instituteId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const tests = await tx.test.findMany({
+        where: { batchId },
+        select: { id: true },
+      });
+
+      for (const test of tests) {
+        await tx.answer.deleteMany({ where: { result: { testId: test.id } } });
+        await tx.result.deleteMany({ where: { testId: test.id } });
+        await tx.question.deleteMany({ where: { testId: test.id } });
+      }
+
+      await tx.test.deleteMany({ where: { batchId } });
+
+      await tx.codingTest.deleteMany({ where: { codingBatchId: batchId } });
+
+      await tx.batchStudent.deleteMany({ where: { batchId } });
+
+      await tx.batch.delete({ where: { id: batchId } });
+    });
+
+    return res.json({ message: 'Batch deleted successfully' });
+  } catch (err) {
+    console.error('Delete batch error:', err);
+    return res.status(500).json({ error: 'Failed to delete batch' });
+  }
+}

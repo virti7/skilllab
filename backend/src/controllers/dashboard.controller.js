@@ -245,6 +245,109 @@ export async function getAdminStudents(req, res) {
   }
 }
 
+// GET /api/dashboard/batch-performance
+export async function getBatchPerformance(req, res) {
+  try {
+    const { instituteId } = req.user;
+
+    const batches = await prisma.batch.findMany({
+      where: { instituteId },
+      include: {
+        tests: {
+          include: {
+            results: true
+          }
+        },
+        batchStudents: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    const batchAnalytics = batches.map(batch => {
+      let totalScore = 0;
+      let totalSubmissions = 0;
+      let totalTests = batch.tests.length;
+
+      batch.tests.forEach(test => {
+        test.results.forEach(result => {
+          totalScore += result.percentage || 0;
+          totalSubmissions++;
+        });
+      });
+
+      const avgScore = totalSubmissions > 0
+        ? Number((totalScore / totalSubmissions).toFixed(2))
+        : 0;
+
+      const uniqueStudents = new Set(batch.batchStudents.map(bs => bs.userId));
+
+      return {
+        batchId: batch.id,
+        batchName: batch.name,
+        avgScore,
+        totalStudents: uniqueStudents.size,
+        totalTests,
+        totalSubmissions
+      };
+    });
+
+    const sortedByScore = [...batchAnalytics].sort((a, b) => b.avgScore - a.avgScore);
+    const bestBatch = sortedByScore.find(b => b.avgScore > 0);
+    const worstBatch = [...sortedByScore].reverse().find(b => b.avgScore > 0);
+    const overallAvg = batchAnalytics.length > 0
+      ? Number((batchAnalytics.reduce((sum, b) => sum + b.avgScore, 0) / batchAnalytics.length).toFixed(2))
+      : 0;
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const trendResults = await prisma.result.findMany({
+      where: {
+        test: { instituteId },
+        submittedAt: { gte: sixMonthsAgo }
+      },
+      select: {
+        percentage: true,
+        submittedAt: true
+      },
+      orderBy: { submittedAt: 'asc' }
+    });
+
+    const weeklyMap = {};
+    trendResults.forEach(r => {
+      const date = new Date(r.submittedAt);
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay());
+      const weekKey = weekStart.toISOString().split('T')[0];
+      if (!weeklyMap[weekKey]) weeklyMap[weekKey] = [];
+      weeklyMap[weekKey].push(r.percentage);
+    });
+
+    const trendData = Object.entries(weeklyMap)
+      .map(([week, scores]) => ({
+        week: new Date(week).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        avgScore: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      }));
+
+    return res.json({
+      batches: batchAnalytics,
+      summary: {
+        totalBatches: batchAnalytics.length,
+        bestBatch: bestBatch ? { name: bestBatch.batchName, score: bestBatch.avgScore } : null,
+        worstBatch: worstBatch ? { name: worstBatch.batchName, score: worstBatch.avgScore } : null,
+        overallAvg
+      },
+      trend: trendData
+    });
+  } catch (err) {
+    console.error('Batch performance error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 // GET /api/admin/student/:id
 export async function getStudentAnalytics(req, res) {
   try {
