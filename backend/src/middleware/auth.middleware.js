@@ -13,7 +13,7 @@ export function authenticate(req, res, next) {
     req.user = {
       id: payload.id,
       email: payload.email,
-      role: payload.role,
+      role: payload.role ? payload.role.toUpperCase() : payload.role,
       name: payload.name,
       instituteId: payload.instituteId,
     };
@@ -40,7 +40,7 @@ export function optionalAuth(req, res, next) {
     req.user = {
       id: payload.id,
       email: payload.email,
-      role: payload.role,
+      role: payload.role ? payload.role.toUpperCase() : payload.role,
       name: payload.name,
       instituteId: payload.instituteId,
     };
