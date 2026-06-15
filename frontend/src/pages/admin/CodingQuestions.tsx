@@ -88,7 +88,7 @@ export default function CodingQuestions() {
   const fetchBatches = async () => {
     try {
       const token = localStorage.getItem('skilllab_token');
-      const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const BASE_URL = import.meta.env.VITE_API_URL || 'https://skilllab-hgrf.onrender.com/api';
       const res = await fetch(`${BASE_URL}/batch/admin/batches`, {
         headers: { Authorization: `Bearer ${token}` }
       });

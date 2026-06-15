@@ -231,7 +231,7 @@ async function loadQuestion() {
     if (!questionId) return;
     try {
       const token = localStorage.getItem('skilllab_token');
-      const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const BASE_URL = import.meta.env.VITE_API_URL || 'https://skilllab-hgrf.onrender.com/api';
       const res = await fetch(`${BASE_URL}/coding/submissions/${questionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -317,7 +317,7 @@ async function loadQuestion() {
     setHint(null);
     try {
       const token = localStorage.getItem('skilllab_token');
-      const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const BASE_URL = import.meta.env.VITE_API_URL || 'https://skilllab-hgrf.onrender.com/api';
       const res = await fetch(`${BASE_URL}/coding/hint`, {
         method: 'POST',
         headers: {
