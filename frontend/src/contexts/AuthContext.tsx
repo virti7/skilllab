@@ -132,7 +132,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithCredentials,
         registerUser,
         logout,
-        login,
       }}
     >
       {children}

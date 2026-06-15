@@ -84,6 +84,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <ErrorBoundary>
       <AuthProvider>
         <BrowserRouter>
           <SplashGate>
@@ -139,6 +140,7 @@ const App = () => (
           </SplashGate>
         </BrowserRouter>
       </AuthProvider>
+      </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );
