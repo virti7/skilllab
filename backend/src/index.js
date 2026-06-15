@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 
 import { errorHandler, generalLimiter } from './middleware/index.js';
 import logger from './utils/logger.js';
+import { prisma } from './utils/prisma.js';
 
 import authRoutes from './routes/auth.routes.js';
 import batchRoutes from './routes/batch.routes.js';
@@ -71,6 +72,17 @@ app.get('/', (req, res) => {
   });
 });
 
+// Startup env validation
+const REQUIRED_ENV_VARS = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DATABASE_URL'];
+const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v]);
+if (missing.length > 0) {
+  logger.error(`Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+if (process.env.JWT_SECRET === 'your-super-secret-jwt-key-change-in-production' || process.env.JWT_SECRET?.length < 16) {
+  logger.warn('JWT_SECRET is weak or still set to default value');
+}
+
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -84,11 +96,11 @@ app.get('/health', (req, res) => {
 app.get('/api/health', async (req, res) => {
   const dbStatus = { status: 'unknown' };
   try {
-    const { prisma } = await import('./utils/prisma.js');
     await prisma.$queryRaw`SELECT 1`;
     dbStatus.status = 'connected';
-  } catch {
+  } catch (err) {
     dbStatus.status = 'disconnected';
+    dbStatus.error = err.message;
   }
   res.status(200).json({
     success: true,

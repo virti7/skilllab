@@ -13,7 +13,10 @@ export function errorHandler(err, req, res, _next) {
 
   // Zod validation errors
   if (err.name === 'ZodError') {
-    return sendError(res, 'Validation failed', 400, err.errors);
+    return sendError(res, 'Validation failed', 400, err.errors.map(e => ({
+      field: e.path.join('.'),
+      message: e.message,
+    })));
   }
 
   // Prisma known errors
@@ -36,9 +39,11 @@ export function errorHandler(err, req, res, _next) {
   }
 
   const statusCode = err.statusCode || 500;
-  const message = process.env.NODE_ENV === 'production' && statusCode === 500
-    ? 'Internal server error'
-    : err.message || 'Internal server error';
+  let message = err.message || 'Internal server error';
+  if (process.env.NODE_ENV === 'production') {
+    if (statusCode === 500) message = 'Internal server error';
+    if (statusCode >= 500) logger.error('Server error', { message: err.message, stack: err.stack });
+  }
 
   return sendError(res, message, statusCode);
 }

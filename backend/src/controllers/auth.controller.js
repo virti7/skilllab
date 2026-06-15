@@ -9,7 +9,7 @@ const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters').regex(/[A-Z]/, 'Password must contain an uppercase letter').regex(/[0-9]/, 'Password must contain a number'),
-  role: z.enum(['ADMIN', 'STUDENT', 'SUPER_ADMIN']),
+  role: z.enum(['admin', 'student', 'super_admin', 'ADMIN', 'STUDENT', 'SUPER_ADMIN'], { errorMap: () => ({ message: 'Role must be one of: admin, student, super_admin' }) }),
   instituteName: z.string().optional(),
 });
 
@@ -46,6 +46,7 @@ function sanitizeUser(user) {
 
 export async function register(req, res, next) {
   try {
+    logger.debug('Register request body', { body: req.body });
     const parsed = registerSchema.parse(req.body);
     const { name, email, password, role, instituteName } = parsed;
     const uppercaseRole = role.toUpperCase();
