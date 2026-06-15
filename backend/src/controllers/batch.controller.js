@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import { prisma } from '../utils/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
 function generateInviteCode() {
   return randomBytes(4).toString('hex').toUpperCase();
@@ -34,6 +35,14 @@ export async function joinBatch(req, res, next) {
   try {
     const { inviteCode } = req.body;
     const userId = req.user.id;
+
+    logger.debug('joinBatch request', {
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      instituteId: req.user.instituteId,
+      inviteCode,
+    });
 
     if (!inviteCode) return sendError(res, 'Invite code is required', 400);
 
