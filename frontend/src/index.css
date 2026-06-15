@@ -101,34 +101,49 @@
   }
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0;
+/* Glassmorphism utilities */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
   }
-  to {
-    opacity: 1;
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
   }
-}
 
-@keyframes slide-in-from-top-2 {
-  from {
-    transform: translateY(-8px);
+  .text-gradient {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600;
   }
-  to {
-    transform: translateY(0);
+
+  .bg-grid {
+    background-image: 
+      linear-gradient(rgba(249, 115, 22, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(249, 115, 22, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
   }
-}
 
-.animate-in {
-  animation-duration: 200ms;
-  animation-timing-function: ease-out;
-  animation-fill-mode: both;
-}
+  .shimmer-bg {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 25%,
+      hsl(var(--secondary)) 50%,
+      hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
 
-.fade-in {
-  animation-name: fade-in;
-}
+  .card-hover {
+    @apply transition-all duration-300;
+  }
 
-.slide-in-from-top-2 {
-  animation-name: slide-in-from-top-2;
+  .card-hover:hover {
+    @apply shadow-lg -translate-y-0.5 border-primary/20;
+  }
 }

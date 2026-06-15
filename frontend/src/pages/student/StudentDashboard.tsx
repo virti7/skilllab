@@ -1,8 +1,26 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
 import { RightPanel } from "@/components/RightPanel";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
-import { Download, FileText, Loader2, Sparkles, TrendingUp, TrendingDown, Award, BookOpen, ArrowRight, Clock, Target, Trophy, History } from "lucide-react";
+import { dashboardApi, StudentDashboardData, studentApi } from "@/lib/api";
+import {
+  Loader2,
+  Sparkles,
+  TrendingUp,
+  Award,
+  BookOpen,
+  ArrowRight,
+  Clock,
+  Target,
+  Trophy,
+  History,
+  Download,
+  FileText,
+  TrendingDown,
+  GraduationCap,
+} from "lucide-react";
 import {
   CartesianGrid,
   Tooltip,
@@ -13,8 +31,19 @@ import {
   YAxis,
 } from "recharts";
 import jsPDF from "jspdf";
-import { useEffect, useState } from "react";
-import { dashboardApi, StudentDashboardData, studentApi } from "@/lib/api";
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+};
 
 function StatCard({
   icon: Icon,
@@ -23,6 +52,7 @@ function StatCard({
   subtext,
   subtextColor = "text-muted-foreground",
   gradient,
+  index = 0,
 }: {
   icon: typeof Target;
   label: string;
@@ -30,9 +60,14 @@ function StatCard({
   subtext?: string;
   subtextColor?: string;
   gradient?: string;
+  index?: number;
 }) {
   return (
-    <div className="group relative overflow-hidden bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/20 transition-all duration-300">
+    <motion.div
+      variants={itemVariants}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className="group relative overflow-hidden bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300"
+    >
       {gradient && (
         <div className={`absolute inset-0 opacity-5 ${gradient}`} />
       )}
@@ -41,60 +76,38 @@ function StatCard({
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             {label}
           </p>
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300">
+          <motion.div
+            whileHover={{ scale: 1.1, rotate: 5 }}
+            className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300"
+          >
             <Icon className="w-5 h-5 text-primary" />
-          </div>
+          </motion.div>
         </div>
-        <p className="text-3xl font-bold text-foreground tracking-tight">{value}</p>
+        <motion.p
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 + index * 0.1, type: "spring", stiffness: 100 }}
+          className="text-3xl font-bold text-foreground tracking-tight"
+        >
+          {value}
+        </motion.p>
         {subtext && (
           <p className={`text-xs mt-1.5 ${subtextColor}`}>{subtext}</p>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  actionLabel,
-  actionPath,
-}: {
-  icon: typeof BookOpen;
-  title: string;
-  description: string;
-  actionLabel?: string;
-  actionPath?: string;
-}) {
+function SkeletonCard() {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-        <Icon className="w-8 h-8 text-muted-foreground" />
+    <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
+      <div className="flex justify-between mb-3">
+        <div className="h-3 bg-muted rounded w-20" />
+        <div className="w-10 h-10 rounded-xl bg-muted" />
       </div>
-      <h4 className="text-base font-semibold text-foreground mb-1">{title}</h4>
-      <p className="text-sm text-muted-foreground mb-4 max-w-xs">{description}</p>
-      {actionLabel && actionPath && (
-        <Link
-          to={actionPath}
-          className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-xl hover:bg-primary/90 transition-all duration-200 shadow-sm hover:shadow-md"
-        >
-          {actionLabel}
-          <ArrowRight className="w-4 h-4" />
-        </Link>
-      )}
-    </div>
-  );
-}
-
-function EmptyChartState() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-8">
-      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mb-3">
-        <TrendingUp className="w-7 h-7 text-primary/60" />
-      </div>
-      <p className="text-sm font-medium text-foreground/70">No performance data yet</p>
-      <p className="text-xs text-muted-foreground mt-1">Complete your first test to see your trend</p>
+      <div className="h-8 bg-muted rounded w-24 mb-2" />
+      <div className="h-3 bg-muted rounded w-32" />
     </div>
   );
 }
@@ -105,9 +118,11 @@ export default function StudentDashboard() {
   const [data, setData] = useState<StudentDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [topicData, setTopicData] = useState<Array<{ topic: string; total: number; correct: number; percentage: number }>>([]);
+  const [topicData, setTopicData] = useState<
+    Array<{ topic: string; total: number; correct: number; percentage: number }>
+  >([]);
   const [topicLoading, setTopicLoading] = useState(true);
-  const [topicSort, setTopicSort] = useState<'strongest' | 'weakest'>('strongest');
+  const [topicSort, setTopicSort] = useState<"strongest" | "weakest">("strongest");
 
   useEffect(() => {
     dashboardApi
@@ -123,9 +138,9 @@ export default function StudentDashboard() {
       })
       .finally(() => setLoading(false));
 
-    studentApi.getTopicBreakdown()
+    studentApi
+      .getTopicBreakdown()
       .then((res) => {
-        console.log("Topics:", res.topics);
         setTopicData(res.topics || []);
       })
       .catch((err) => console.error("Topic breakdown error:", err))
@@ -133,49 +148,22 @@ export default function StudentDashboard() {
   }, []);
 
   const sortedTopics = [...topicData].sort((a, b) => {
-    return topicSort === 'strongest' ? b.percentage - a.percentage : a.percentage - b.percentage;
+    return topicSort === "strongest"
+      ? b.percentage - a.percentage
+      : a.percentage - b.percentage;
   });
 
-  if (loading) {
-    return (
-      <AppLayout rightPanel={<RightPanel />}>
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading your dashboard...</p>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <AppLayout rightPanel={<RightPanel />}>
-        <div className="flex items-center justify-center py-20">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <p className="text-destructive font-medium">Failed to load dashboard</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
-          </div>
-        </div>
-      </AppLayout>
-    );
-  }
-
+  const firstName = user?.name?.split(" ")[0] || "there";
   const pendingCount = data?.pendingCount ?? 0;
   const completedCount = data?.completedCount ?? 0;
   const avgScore = data?.avgScore ?? 0;
   const batchRank = data?.batchRank ?? null;
   const scoreTrend = data?.scoreTrend ?? [];
   const myTests = data?.recentTests ?? [];
-
-  // Ensure scoreTrend has valid data for chart
-  const safeScoreTrend = Array.isArray(scoreTrend) 
-    ? scoreTrend.filter(item => item && typeof item.score === 'number')
+  const safeScoreTrend = Array.isArray(scoreTrend)
+    ? scoreTrend.filter((item) => item && typeof item.score === "number")
     : [];
-
   const hasData = completedCount > 0 || pendingCount > 0;
-  const firstName = user?.name?.split(" ")[0] || "there";
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -184,144 +172,195 @@ export default function StudentDashboard() {
     return "Good evening";
   };
 
-  const downloadReport = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text("My Performance Report", 20, 25);
-    doc.setFontSize(12);
-    doc.text(`Student: ${user?.name || "Student"}`, 20, 40);
-    doc.text(`Average Score: ${avgScore}%`, 20, 50);
-    doc.text(`Tests Completed: ${completedCount}`, 20, 60);
-    doc.text(`Tests Pending: ${pendingCount}`, 20, 70);
-    if (batchRank) doc.text(`Batch Rank: #${batchRank}`, 20, 80);
-    doc.setFontSize(14);
-    doc.text("Topic Breakdown", 20, 100);
-    topicBreakdown.forEach((t, i) => {
-      doc.setFontSize(11);
-      doc.text(`${t.topic}: ${t.score}%`, 25, 112 + i * 10);
-    });
-    doc.setFontSize(14);
-    doc.text("Test Results", 20, 170);
-    myTests
-      .filter((t) => t.status === "completed")
-      .forEach((t, i) => {
-        doc.setFontSize(11);
-        doc.text(`${t.name} — ${t.score ?? 0}%`, 25, 182 + i * 10);
-      });
-    doc.save("my-report.pdf");
-  };
-
-  const downloadTestPdf = (test: StudentDashboardData["recentTests"][0]) => {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text("Test Result", 20, 25);
-    doc.setFontSize(12);
-    doc.text(`Student: ${user?.name || "Student"}`, 20, 40);
-    doc.text(`Test: ${test.name}`, 20, 50);
-    doc.text(`Score: ${test.score ?? 0}%`, 20, 60);
-    doc.text(`Status: ${(test.score ?? 0) >= 50 ? "PASS" : "FAIL"}`, 20, 70);
-    doc.save(`${test.name.replace(/\s+/g, "_")}_result.pdf`);
-  };
-
   return (
     <AppLayout rightPanel={<RightPanel />}>
-      <div className="mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{getGreeting()},</span>
-              <Sparkles className="w-4 h-4 text-primary" />
+      {loading ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="space-y-6"
+        >
+          <div className="animate-pulse space-y-3">
+            <div className="h-4 bg-muted rounded w-32" />
+            <div className="h-8 bg-muted rounded w-64" />
+            <div className="h-4 bg-muted rounded w-48" />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
+              <div className="h-5 bg-muted rounded w-32 mb-4" />
+              <div className="h-52 bg-muted rounded" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">
-              Welcome back, {firstName}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {hasData ? (
-                batchRank ? (
-                  <>You're ranked <span className="text-primary font-semibold">#{batchRank}</span> in your batch. Keep up the great work!</>
-                ) : (
-                  <>You have <span className="text-warning font-semibold">{pendingCount} pending</span> tests waiting for you.</>
-                )
-              ) : (
-                <>Ready to start your learning journey? <span className="text-primary font-medium">Let's go!</span></>
-              )}
-            </p>
+            <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
+              <div className="h-5 bg-muted rounded w-40 mb-4" />
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i}>
+                    <div className="h-4 bg-muted rounded w-24 mb-2" />
+                    <div className="h-2 bg-muted rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <button
-            onClick={downloadReport}
-            disabled={!hasData}
-            className="inline-flex items-center gap-2 bg-foreground text-background text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-foreground/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            <Download className="w-4 h-4" />
-            Download Report
-          </button>
-          <Link
-            to="/student/test-history"
-            className="inline-flex items-center gap-2 border border-border text-foreground text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-secondary transition-all duration-200"
-          >
-            <History className="w-4 h-4" />
-            Test History
-          </Link>
-        </div>
-      </div>
-
-      {!hasData ? (
-        <div className="bg-gradient-to-br from-primary/5 via-card to-card rounded-2xl border border-border p-8 text-center">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6">
-            <BookOpen className="w-10 h-10 text-primary" />
+        </motion.div>
+      ) : error ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-center py-20"
+        >
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
+              <TrendingDown className="w-8 h-8 text-destructive" />
+            </div>
+            <p className="text-destructive font-medium">Failed to load dashboard</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
           </div>
-          <h3 className="text-xl font-bold text-foreground mb-2">
-            Join a batch to start learning
-          </h3>
-          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            You're not enrolled in any batch yet. Contact your administrator or institution to get started with your courses and assessments.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              to="/student/tests"
-              className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-semibold px-6 py-3 rounded-xl hover:bg-primary/90 transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
-            >
-              <BookOpen className="w-4 h-4" />
-              Browse Courses
-            </Link>
-            <Link
-              to="/student/leaderboard"
-              className="inline-flex items-center gap-2 border border-border text-foreground text-sm font-medium px-6 py-3 rounded-xl hover:bg-secondary transition-all duration-200"
-            >
-              View Leaderboard
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
+        </motion.div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="space-y-6"
+        >
+          {/* Welcome Banner */}
+          <motion.div
+            variants={itemVariants}
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 p-6 lg:p-8"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl" />
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-white/80 text-sm">
+                  <span>{getGreeting()},</span>
+                  <Sparkles className="w-4 h-4 text-yellow-300" />
+                </div>
+                <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">
+                  Welcome back, {firstName}
+                </h1>
+                <p className="text-white/70 text-sm max-w-lg">
+                  {hasData
+                    ? batchRank
+                      ? `You're ranked #${batchRank} in your batch. Keep up the great work!`
+                      : `You have ${pendingCount} pending tests waiting for you.`
+                    : "Ready to start your learning journey? Let's go!"}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => navigate("/student/test-history")}
+                  className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-white/25 transition-all duration-200 border border-white/10"
+                >
+                  <History className="w-4 h-4" />
+                  Test History
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="inline-flex items-center gap-2 bg-white text-orange-600 text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-white/90 transition-all duration-200 shadow-lg"
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  Start Learning
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+
+          {!hasData ? (
+            <motion.div
+              variants={itemVariants}
+              className="bg-gradient-to-br from-primary/5 via-card to-card rounded-2xl border border-border p-8 text-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center mx-auto mb-6"
+              >
+                <BookOpen className="w-10 h-10 text-primary" />
+              </motion.div>
+              <h3 className="text-xl font-bold text-foreground mb-2">
+                Join a batch to start learning
+              </h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                You're not enrolled in any batch yet. Contact your administrator
+                to get started with your courses and assessments.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <Link
+                  to="/student/tests"
+                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground text-sm font-semibold px-6 py-3 rounded-xl hover:bg-primary/90 transition-all duration-200 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Browse Courses
+                </Link>
+              </div>
+            </motion.div>
+          ) : (
+            <>
+              {/* Statistics Cards */}
+              <motion.div
+                variants={itemVariants}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+              >
                 <StatCard
                   icon={Target}
                   label="My Avg Score"
                   value={`${avgScore}%`}
-                  subtext={avgScore >= 80 ? "Excellent performance!" : avgScore >= 60 ? "Room to improve" : "Keep practicing"}
-                  subtextColor={avgScore >= 80 ? "text-success" : avgScore >= 60 ? "text-warning" : "text-destructive"}
+                  subtext={
+                    avgScore >= 80
+                      ? "Excellent performance!"
+                      : avgScore >= 60
+                      ? "Room to improve"
+                      : "Keep practicing"
+                  }
+                  subtextColor={
+                    avgScore >= 80
+                      ? "text-success"
+                      : avgScore >= 60
+                      ? "text-warning"
+                      : "text-destructive"
+                  }
                   gradient="bg-gradient-to-br from-success/20 to-transparent"
+                  index={0}
                 />
                 <StatCard
                   icon={BookOpen}
                   label="Tests Done"
                   value={completedCount + pendingCount}
                   subtext={`${completedCount} completed • ${pendingCount} pending`}
-                  subtextColor="text-muted-foreground"
+                  index={1}
                 />
                 <StatCard
                   icon={Trophy}
                   label="Batch Rank"
                   value={batchRank ? `#${batchRank}` : "—"}
-                  subtext={batchRank ? "Keep climbing!" : "Complete a test to rank"}
-                  subtextColor={batchRank ? "text-primary" : "text-muted-foreground"}
+                  subtext={
+                    batchRank ? "Keep climbing!" : "Complete a test to rank"
+                  }
+                  subtextColor={
+                    batchRank ? "text-primary" : "text-muted-foreground"
+                  }
                   gradient="bg-gradient-to-br from-primary/20 to-transparent"
+                  index={2}
                 />
-              </div>
+              </motion.div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+              {/* Charts Row */}
+              <motion.div
+                variants={itemVariants}
+                className="grid grid-cols-1 lg:grid-cols-2 gap-4"
+              >
+                {/* Score Trend */}
                 <div className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/10 transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -335,18 +374,46 @@ export default function StudentDashboard() {
                     )}
                   </div>
                   {safeScoreTrend.length === 0 ? (
-                    <EmptyChartState />
+                    <div className="flex flex-col items-center justify-center h-52">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mb-3">
+                        <TrendingUp className="w-7 h-7 text-primary/60" />
+                      </div>
+                      <p className="text-sm font-medium text-foreground/70">
+                        No performance data yet
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Complete your first test to see your trend
+                      </p>
+                    </div>
                   ) : (
                     <div className="h-52">
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={safeScoreTrend}>
                           <defs>
-                            <linearGradient id="scoreFill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.15} />
-                              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                            <linearGradient
+                              id="scoreFill"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
+                              <stop
+                                offset="5%"
+                                stopColor="hsl(var(--primary))"
+                                stopOpacity={0.15}
+                              />
+                              <stop
+                                offset="95%"
+                                stopColor="hsl(var(--primary))"
+                                stopOpacity={0}
+                              />
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="hsl(var(--border))"
+                            vertical={false}
+                          />
                           <XAxis
                             dataKey="test"
                             tick={{ fontSize: 11 }}
@@ -368,9 +435,13 @@ export default function StudentDashboard() {
                               border: "1px solid hsl(var(--border))",
                               borderRadius: "0.75rem",
                               fontSize: 12,
-                              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                              boxShadow:
+                                "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                             }}
-                            formatter={(value: number) => [`${value}%`, "Score"]}
+                            formatter={(value: number) => [
+                              `${value}%`,
+                              "Score",
+                            ]}
                           />
                           <Area
                             type="monotone"
@@ -378,8 +449,16 @@ export default function StudentDashboard() {
                             stroke="hsl(var(--primary))"
                             fill="url(#scoreFill)"
                             strokeWidth={2.5}
-                            dot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 0 }}
-                            activeDot={{ r: 6, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                            dot={{
+                              r: 4,
+                              fill: "hsl(var(--primary))",
+                              strokeWidth: 0,
+                            }}
+                            activeDot={{
+                              r: 6,
+                              fill: "hsl(var(--primary))",
+                              strokeWidth: 0,
+                            }}
                           />
                         </AreaChart>
                       </ResponsiveContainer>
@@ -387,6 +466,7 @@ export default function StudentDashboard() {
                   )}
                 </div>
 
+                {/* Topic Breakdown */}
                 <div className="bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-md hover:border-primary/10 transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -396,22 +476,22 @@ export default function StudentDashboard() {
                     {topicData.length > 1 && (
                       <div className="flex items-center gap-1 bg-secondary/50 p-0.5 rounded-lg">
                         <button
-                          onClick={() => setTopicSort('strongest')}
+                          onClick={() => setTopicSort("strongest")}
                           className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                            topicSort === 'strongest' 
-                              ? 'bg-card text-foreground shadow-sm' 
-                              : 'text-muted-foreground hover:text-foreground'
+                            topicSort === "strongest"
+                              ? "bg-card text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           <TrendingUp className="w-3 h-3 inline mr-1" />
                           Strongest
                         </button>
                         <button
-                          onClick={() => setTopicSort('weakest')}
+                          onClick={() => setTopicSort("weakest")}
                           className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
-                            topicSort === 'weakest' 
-                              ? 'bg-card text-foreground shadow-sm' 
-                              : 'text-muted-foreground hover:text-foreground'
+                            topicSort === "weakest"
+                              ? "bg-card text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
                           }`}
                         >
                           <TrendingDown className="w-3 h-3 inline mr-1" />
@@ -424,8 +504,8 @@ export default function StudentDashboard() {
                     <div className="space-y-4">
                       {[1, 2, 3].map((i) => (
                         <div key={i} className="animate-pulse">
-                          <div className="h-4 bg-muted rounded w-20 mb-2"></div>
-                          <div className="h-2 bg-muted rounded-full"></div>
+                          <div className="h-4 bg-muted rounded w-20 mb-2" />
+                          <div className="h-2 bg-muted rounded-full" />
                         </div>
                       ))}
                     </div>
@@ -434,49 +514,65 @@ export default function StudentDashboard() {
                       <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-3">
                         <Award className="w-6 h-6 text-muted-foreground" />
                       </div>
-                      <p className="text-sm text-muted-foreground">No topic data available</p>
-                      <p className="text-xs text-muted-foreground mt-1">Complete tests to see topic performance</p>
+                      <p className="text-sm text-muted-foreground">
+                        No topic data available
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {sortedTopics.map((t, i) => {
                         const getColor = (pct: number) => {
-                          if (pct >= 75) return "text-success";
-                          if (pct >= 50) return "text-warning";
-                          return "text-destructive";
-                        };
-                        const getBarColor = (pct: number) => {
                           if (pct >= 75) return "#22c55e";
                           if (pct >= 50) return "#f59e0b";
                           return "#ef4444";
                         };
                         return (
-                          <div key={t.topic} className="group">
+                          <motion.div
+                            key={t.topic}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: i * 0.05 }}
+                            className="group"
+                          >
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-sm text-foreground font-medium">{t.topic}</span>
-                              <span className="text-sm font-bold" style={{ color: getColor(t.percentage) }}>
+                              <span className="text-sm text-foreground font-medium">
+                                {t.topic}
+                              </span>
+                              <span
+                                className="text-sm font-bold"
+                                style={{ color: getColor(t.percentage) }}
+                              >
                                 {t.percentage}%
                               </span>
                             </div>
                             <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full transition-all duration-500 ease-out"
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${t.percentage}%` }}
+                                transition={{
+                                  duration: 0.8,
+                                  delay: i * 0.1,
+                                  ease: "easeOut",
+                                }}
+                                className="h-full rounded-full"
                                 style={{
-                                  width: `${t.percentage}%`,
-                                  backgroundColor: getBarColor(t.percentage),
-                                  transitionDelay: `${i * 100}ms`
+                                  backgroundColor: getColor(t.percentage),
                                 }}
                               />
                             </div>
-                          </div>
+                          </motion.div>
                         );
                       })}
                     </div>
                   )}
                 </div>
-              </div>
+              </motion.div>
 
-              <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
+              {/* My Tests Table */}
+              <motion.div
+                variants={itemVariants}
+                className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden hover:shadow-md transition-all duration-300"
+              >
                 <div className="p-5 border-b border-border flex items-center justify-between">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <Clock className="w-4 h-4 text-primary" />
@@ -516,12 +612,17 @@ export default function StudentDashboard() {
                     </thead>
                     <tbody>
                       {myTests.map((test, i) => (
-                        <tr
+                        <motion.tr
                           key={test.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.03 }}
                           className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors duration-150"
                         >
                           <td className="px-5 py-3.5">
-                            <span className="font-medium text-foreground">{test.name}</span>
+                            <span className="font-medium text-foreground">
+                              {test.name}
+                            </span>
                           </td>
                           <td className="px-5 py-3.5 text-muted-foreground">
                             {test.duration}
@@ -563,10 +664,11 @@ export default function StudentDashboard() {
                               </Link>
                             ) : (
                               <button
-                                onClick={() => {
-                                  console.log("Clicked Test ID:", test.id);
-                                  navigate(`/student/test-result/${test.id}`);
-                                }}
+                                onClick={() =>
+                                  navigate(
+                                    `/student/test-result/${test.id}`
+                                  )
+                                }
                                 className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-all duration-200"
                               >
                                 <FileText className="w-3 h-3" />
@@ -574,14 +676,16 @@ export default function StudentDashboard() {
                               </button>
                             )}
                           </td>
-                        </tr>
+                        </motion.tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </motion.div>
             </>
           )}
+        </motion.div>
+      )}
     </AppLayout>
   );
 }

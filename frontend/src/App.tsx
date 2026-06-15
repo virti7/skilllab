@@ -1,10 +1,12 @@
+import { useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster as Sonner } from '@/components/ui/sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { SplashScreen } from '@/components/SplashScreen';
 
 import Login from './pages/Login';
 import NotFound from './pages/NotFound';
@@ -58,6 +60,24 @@ function Stu({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute allowedRoles={['student']}>{children}</ProtectedRoute>;
 }
 
+function SplashGate({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [showSplash, setShowSplash] = useState(true);
+
+  // Show splash only on fresh load (not authenticated yet)
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      setShowSplash(false);
+    }
+  }, [isLoading, isAuthenticated]);
+
+  if (showSplash) {
+    return <SplashScreen onComplete={() => setShowSplash(false)} />;
+  }
+
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -65,53 +85,55 @@ const App = () => (
       <Sonner />
       <AuthProvider>
         <BrowserRouter>
-          <Routes>
-            <Route path='/' element={<Navigate to='/login' replace />} />
-            <Route path='/login' element={<Login />} />
+          <SplashGate>
+            <Routes>
+              <Route path='/' element={<Navigate to='/login' replace />} />
+              <Route path='/login' element={<Login />} />
 
-            {/* Super Admin */}
-            <Route path='/super-admin' element={<SA><SuperAdminDashboard /></SA>} />
-            <Route path='/super-admin/institutes' element={<SA><Institutes /></SA>} />
-            <Route path='/super-admin/users' element={<SA><AllUsers /></SA>} />
-            <Route path='/super-admin/subscriptions' element={<SA><Subscriptions /></SA>} />
+              {/* Super Admin */}
+              <Route path='/super-admin' element={<SA><SuperAdminDashboard /></SA>} />
+              <Route path='/super-admin/institutes' element={<SA><Institutes /></SA>} />
+              <Route path='/super-admin/users' element={<SA><AllUsers /></SA>} />
+              <Route path='/super-admin/subscriptions' element={<SA><Subscriptions /></SA>} />
 
-            {/* Admin */}
-            <Route path='/admin' element={<Admin><AdminDashboard /></Admin>} />
-            <Route path='/admin/batches' element={<Admin><Batches /></Admin>} />
-            <Route path='/admin/batch/:id' element={<Admin><BatchAnalytics /></Admin>} />
-            <Route path='/admin/students' element={<Admin><AdminStudents /></Admin>} />
-            <Route path='/admin/student/:id' element={<Admin><StudentAnalytics /></Admin>} />
-            <Route path='/admin/tests' element={<Admin><AdminTests /></Admin>} />
-            <Route path="/admin/practice-sheets" element={<Admin><PracticeSheets /></Admin>} />
-            <Route path='/admin/leaderboard' element={<Admin><Leaderboard /></Admin>} />
-            <Route path='/admin/analytics' element={<Admin><AdminAnalytics /></Admin>} />
-            <Route path='/admin/coding' element={<Admin><CodingQuestions /></Admin>} />
-            <Route path='/admin/coding/tests' element={<Admin><CodingTests /></Admin>} />
-            <Route path='/admin/coding/test/:testId/analytics' element={<Admin><AdminCodingTestAnalytics /></Admin>} />
+              {/* Admin */}
+              <Route path='/admin' element={<Admin><AdminDashboard /></Admin>} />
+              <Route path='/admin/batches' element={<Admin><Batches /></Admin>} />
+              <Route path='/admin/batch/:id' element={<Admin><BatchAnalytics /></Admin>} />
+              <Route path='/admin/students' element={<Admin><AdminStudents /></Admin>} />
+              <Route path='/admin/student/:id' element={<Admin><StudentAnalytics /></Admin>} />
+              <Route path='/admin/tests' element={<Admin><AdminTests /></Admin>} />
+              <Route path="/admin/practice-sheets" element={<Admin><PracticeSheets /></Admin>} />
+              <Route path='/admin/leaderboard' element={<Admin><Leaderboard /></Admin>} />
+              <Route path='/admin/analytics' element={<Admin><AdminAnalytics /></Admin>} />
+              <Route path='/admin/coding' element={<Admin><CodingQuestions /></Admin>} />
+              <Route path='/admin/coding/tests' element={<Admin><CodingTests /></Admin>} />
+              <Route path='/admin/coding/test/:testId/analytics' element={<Admin><AdminCodingTestAnalytics /></Admin>} />
 
-            {/* Student */}
-            <Route path='/student' element={<Stu><StudentDashboard /></Stu>} />
-            <Route path='/student/tests' element={<Stu><StudentTests /></Stu>} />
-            <Route path='/student/batch/:batchId/tests' element={<Stu><BatchTestsPage /></Stu>} />
-            <Route path='/student/test-history' element={<Stu><TestHistoryPage /></Stu>} />
-            <Route path='/student/test/:testSubmissionId/analytics' element={<Stu><TestAnalyticsPage /></Stu>} />
-            <Route path='/student/courses/:courseId' element={<Stu><StudentCourseDetail /></Stu>} />
-            <Route path='/student/leaderboard' element={<Stu><Leaderboard /></Stu>} />
-            <Route path='/student/profile' element={<Stu><StudentProfile /></Stu>} />
-            <Route path='/student/test-page/:testId' element={<Stu><TestPage /></Stu>} />
-            <Route path='/student/test-page' element={<Stu><TestPage /></Stu>} />
-            <Route path='/student/test-result/:testId' element={<Stu><TestResultPage /></Stu>} />
-            <Route path='/student/coding' element={<Stu><CodingLab /></Stu>} />
-            <Route path='/student/coding/:batchId' element={<Stu><BatchCodingPage /></Stu>} />
-            <Route path='/student/coding/question/:questionId' element={<Stu><CodingIDE /></Stu>} />
-            <Route path='/student/coding/test/:testId' element={<Stu><CodingTestPage /></Stu>} />
-            <Route path='/student/coding/analytics' element={<Stu><StudentCodingAnalytics /></Stu>} />
-            <Route path='/student/coding/analytics/:batchId' element={<Stu><StudentCodingAnalytics /></Stu>} />
-            <Route path='/student/coding/analytics/submission/:submissionId' element={<Stu><StudentCodingAnalytics /></Stu>} />
-            <Route path='/student/coding/history/:batchId' element={<Stu><StudentCodingHistory /></Stu>} />
+              {/* Student */}
+              <Route path='/student' element={<Stu><StudentDashboard /></Stu>} />
+              <Route path='/student/tests' element={<Stu><StudentTests /></Stu>} />
+              <Route path='/student/batch/:batchId/tests' element={<Stu><BatchTestsPage /></Stu>} />
+              <Route path='/student/test-history' element={<Stu><TestHistoryPage /></Stu>} />
+              <Route path='/student/test/:testSubmissionId/analytics' element={<Stu><TestAnalyticsPage /></Stu>} />
+              <Route path='/student/courses/:courseId' element={<Stu><StudentCourseDetail /></Stu>} />
+              <Route path='/student/leaderboard' element={<Stu><Leaderboard /></Stu>} />
+              <Route path='/student/profile' element={<Stu><StudentProfile /></Stu>} />
+              <Route path='/student/test-page/:testId' element={<Stu><TestPage /></Stu>} />
+              <Route path='/student/test-page' element={<Stu><TestPage /></Stu>} />
+              <Route path='/student/test-result/:testId' element={<Stu><TestResultPage /></Stu>} />
+              <Route path='/student/coding' element={<Stu><CodingLab /></Stu>} />
+              <Route path='/student/coding/:batchId' element={<Stu><BatchCodingPage /></Stu>} />
+              <Route path='/student/coding/question/:questionId' element={<Stu><CodingIDE /></Stu>} />
+              <Route path='/student/coding/test/:testId' element={<Stu><CodingTestPage /></Stu>} />
+              <Route path='/student/coding/analytics' element={<Stu><StudentCodingAnalytics /></Stu>} />
+              <Route path='/student/coding/analytics/:batchId' element={<Stu><StudentCodingAnalytics /></Stu>} />
+              <Route path='/student/coding/analytics/submission/:submissionId' element={<Stu><StudentCodingAnalytics /></Stu>} />
+              <Route path='/student/coding/history/:batchId' element={<Stu><StudentCodingHistory /></Stu>} />
 
-            <Route path='*' element={<NotFound />} />
-          </Routes>
+              <Route path='*' element={<NotFound />} />
+            </Routes>
+          </SplashGate>
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>

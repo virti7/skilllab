@@ -32,6 +32,7 @@ interface AuthContextType {
     email: string;
     password: string;
     role: string;
+    mobile?: string;
     instituteName?: string;
   }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
