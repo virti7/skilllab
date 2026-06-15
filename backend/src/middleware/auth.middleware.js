@@ -26,6 +26,8 @@ export function authenticate(req, res, next) {
   }
 }
 
+export { requireRole } from './roleGuard.js';
+
 export function optionalAuth(req, res, next) {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
