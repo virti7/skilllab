@@ -1,12 +1,10 @@
 import { prisma } from '../utils/prisma.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-export async function getBatchAnalytics(req, res) {
+export async function getBatchAnalytics(req, res, next) {
   try {
     const { id } = req.params;
     const { instituteId, role } = req.user;
-
-    console.log('Batch ID:', id);
-    console.log('User Institute:', instituteId, 'Role:', role);
 
     const batch = await prisma.batch.findUnique({
       where: { id },
@@ -38,25 +36,17 @@ export async function getBatchAnalytics(req, res) {
     });
 
     if (!batch) {
-      console.log('Batch not found for ID:', id);
-      return res.status(404).json({ error: 'Batch not found' });
+      return sendError(res, 'Batch not found', 404);
     }
 
-    console.log('Batch Data:', { id: batch.id, name: batch.name, studentCount: batch.batchStudents?.length || 0, testCount: batch.tests?.length || 0 });
-
     if (role === 'ADMIN' && batch.instituteId !== instituteId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
     const students = batch.batchStudents.map((bs) => bs.user);
     const tests = batch.tests;
 
-    console.log('=== BATCH ANALYTICS ===');
-    console.log('Batch:', batch.name);
-    console.log('Students:', students.length, 'Tests:', tests.length);
-
     if (students.length === 0 && tests.length === 0) {
-      console.log('Empty batch - no students or tests');
       return res.json({
         batch: {
           id: batch.id,
@@ -242,8 +232,6 @@ export async function getBatchAnalytics(req, res) {
       scoreDistribution,
     });
   } catch (err) {
-    console.error('Get batch analytics error:', err);
-    console.error('Error stack:', err.stack);
-    return res.status(500).json({ error: 'Failed to load analytics' });
+    next(err);
   }
 }

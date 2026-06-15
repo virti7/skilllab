@@ -1,7 +1,9 @@
 import { prisma } from '../utils/prisma.js';
 import { generateTestFeedback } from '../services/groq.service.js';
+import { sendSuccess, sendError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
-export async function getTestResult(req, res) {
+export async function getTestResult(req, res, next) {
   try {
     const { testId } = req.params;
     const { id: userId } = req.user;
@@ -16,7 +18,7 @@ export async function getTestResult(req, res) {
     });
 
     if (!result) {
-      return res.status(404).json({ error: 'Result not found. You may not have taken this test yet.' });
+      return sendError(res, 'Result not found. You may not have taken this test yet.', 404);
     }
 
     const questions = await prisma.question.findMany({
@@ -79,7 +81,7 @@ export async function getTestResult(req, res) {
         const feedback = await generateTestFeedback(score, total, topicStatsWithPercentage, weakTopics, detailed);
         aiFeedback = feedback;
       } catch (aiErr) {
-        console.error('AI feedback generation failed:', aiErr.message);
+        logger.error('AI feedback generation failed:', aiErr.message);
         aiFeedback = {
           strengths: 'Keep practicing consistently.',
           weaknesses: weakTopics.length > 0 ? `Focus on: ${weakTopics.join(', ')}` : 'Keep building your knowledge base.',
@@ -106,7 +108,6 @@ export async function getTestResult(req, res) {
       aiFeedback,
     });
   } catch (err) {
-    console.error('Get test result error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }

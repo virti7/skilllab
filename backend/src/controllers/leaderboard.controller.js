@@ -1,16 +1,14 @@
 import { prisma } from '../utils/prisma.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-// GET /api/leaderboard  — overall or batch-wise
-export async function getLeaderboard(req, res) {
+export async function getLeaderboard(req, res, next) {
   try {
     const { batchId } = req.query;
     const { instituteId } = req.user;
 
-    // Build base filter for institute scope
     const testFilter = { instituteId };
     if (batchId) testFilter.batchId = batchId;
 
-    // Use raw SQL for RANK() OVER
     const rows = await prisma.$queryRaw`
       SELECT
         u.id AS "userId",
@@ -47,13 +45,11 @@ export async function getLeaderboard(req, res) {
       }))
     );
   } catch (err) {
-    console.error('Leaderboard error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/leaderboard/batch/:batchId
-export async function getBatchLeaderboard(req, res) {
+export async function getBatchLeaderboard(req, res, next) {
   try {
     const { batchId } = req.params;
     const { instituteId } = req.user;
@@ -93,7 +89,6 @@ export async function getBatchLeaderboard(req, res) {
       }))
     );
   } catch (err) {
-    console.error('Batch leaderboard error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }

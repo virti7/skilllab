@@ -1,30 +1,30 @@
 import { runCode, submitCode, validateLanguage } from '../services/compiler.service.js';
 import { prisma } from '../utils/prisma.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-export async function runCodeHandler(req, res) {
+export async function runCodeHandler(req, res, next) {
   try {
     const { code, language, input } = req.body;
 
     if (!code || !language) {
-      return res.status(400).json({ error: 'Code and language are required' });
+      return sendError(res, 'Code and language are required', 400);
     }
 
     const result = await runCode({ code, language, input: input || '' });
 
     return res.json(result);
   } catch (error) {
-    console.error('Run code error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function submitCodeHandler(req, res) {
+export async function submitCodeHandler(req, res, next) {
   try {
     const { code, language, questionId } = req.body;
     const userId = req.user?.id;
 
     if (!code || !language || !questionId) {
-      return res.status(400).json({ error: 'Code, language, and questionId are required' });
+      return sendError(res, 'Code, language, and questionId are required', 400);
     }
 
     const question = await prisma.codingQuestion.findUnique({
@@ -39,11 +39,11 @@ export async function submitCodeHandler(req, res) {
     });
 
     if (!question) {
-      return res.status(404).json({ error: 'Question not found' });
+      return sendError(res, 'Question not found', 404);
     }
 
     const testCases = question.testCases || [];
-    
+
     let submissionResult;
     if (testCases.length > 0) {
       submissionResult = await submitCode(code, language, testCases);
@@ -85,7 +85,6 @@ export async function submitCodeHandler(req, res) {
 
     return res.json(submissionResult);
   } catch (error) {
-    console.error('Submit code error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }

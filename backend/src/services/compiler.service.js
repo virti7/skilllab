@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js';
 import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -20,7 +21,7 @@ function formatInput(input) {
       const arr = JSON.parse(trimmed);
       if (Array.isArray(arr)) {
         const formattedInput = arr.length + "\n" + arr.join(" ");
-        console.log("Formatted Input:", formattedInput);
+        logger.info("Formatted Input:", formattedInput);
         return formattedInput;
       }
     } catch (e) {
@@ -185,7 +186,7 @@ async function cleanup(tempDir) {
   try {
     await fs.rm(tempDir, { recursive: true, force: true });
   } catch (error) {
-    console.error('Cleanup warning:', error.message);
+    logger.error('Cleanup warning', { error: error.message });
   }
 }
 
@@ -390,7 +391,7 @@ async function runSingleTest({ code, language, input }) {
     };
 
   } catch (error) {
-    console.error('Run error:', error);
+    logger.error('Run error', { error: error.message });
     return {
       input,
       output: '',
@@ -478,7 +479,7 @@ async function runCode({ code, language, sampleTestCases = [] }) {
     };
 
   } catch (error) {
-    console.error('Run error:', error);
+    logger.error('Run error', { error: error.message });
     return {
       results: [],
       status: 'Runtime Error',

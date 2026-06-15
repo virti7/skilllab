@@ -1,7 +1,8 @@
 import { prisma } from '../utils/prisma.js';
 import { analyzeStudentPerformance } from '../services/groq.service.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-export async function getTestAnalytics(req, res) {
+export async function getTestAnalytics(req, res, next) {
   try {
     const { testId } = req.params;
     const { instituteId, role } = req.user;
@@ -47,11 +48,11 @@ export async function getTestAnalytics(req, res) {
     });
 
     if (!test) {
-      return res.status(404).json({ error: 'Test not found' });
+      return sendError(res, 'Test not found', 404);
     }
 
     if (role === 'ADMIN' && test.batch?.instituteId !== instituteId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
     const questionAnalysis = test.questions.map((q) => {
@@ -92,7 +93,7 @@ export async function getTestAnalytics(req, res) {
             }));
             aiAnalysis = await analyzeStudentPerformance(result.user.name, answersForAnalysis, []);
           } catch (err) {
-            console.error('AI analysis failed:', err);
+            // AI analysis failed, skip
           }
         }
 
@@ -148,12 +149,11 @@ export async function getTestAnalytics(req, res) {
       easiestQuestions: [...sortedQuestions].reverse().slice(0, 5),
     });
   } catch (err) {
-    console.error('Get test analytics error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-export async function getTestAnalyticsSimple(req, res) {
+export async function getTestAnalyticsSimple(req, res, next) {
   try {
     const { testId } = req.params;
     const { instituteId, role } = req.user;
@@ -180,11 +180,11 @@ export async function getTestAnalyticsSimple(req, res) {
     });
 
     if (!test) {
-      return res.status(404).json({ error: 'Test not found' });
+      return sendError(res, 'Test not found', 404);
     }
 
     if (role === 'ADMIN' && test.batch?.instituteId !== instituteId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
     const totalStudents = test._count.results;
@@ -203,7 +203,6 @@ export async function getTestAnalyticsSimple(req, res) {
         : 0,
     });
   } catch (err) {
-    console.error('Get test analytics simple error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }

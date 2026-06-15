@@ -1,13 +1,12 @@
 import { prisma } from '../utils/prisma.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-export async function getStudentAnalytics(req, res) {
+export async function getStudentAnalytics(req, res, next) {
   try {
     const { id: userId, role } = req.user;
 
-    console.log("Fetching analytics for user:", userId);
-
     if (role !== 'STUDENT') {
-      return res.status(403).json({ error: 'Only students can access this endpoint' });
+      return sendError(res, 'Only students can access this endpoint', 403);
     }
 
     const results = await prisma.result.findMany({
@@ -82,8 +81,6 @@ export async function getStudentAnalytics(req, res) {
       submittedAt: r.submittedAt,
     }));
 
-    console.log("Student Analytics:", { testsTaken, avgScore, rank, completion, passedCount });
-
     res.json({
       testsTaken,
       avgScore,
@@ -93,16 +90,13 @@ export async function getStudentAnalytics(req, res) {
       recentTests,
     });
   } catch (err) {
-    console.error('Get student analytics error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-export async function getTopicBreakdown(req, res) {
+export async function getTopicBreakdown(req, res, next) {
   try {
     const { id: userId } = req.user;
-
-    console.log("Fetching topic breakdown for user:", userId);
 
     const results = await prisma.result.findMany({
       where: { userId },
@@ -124,7 +118,7 @@ export async function getTopicBreakdown(req, res) {
 
     results.forEach((result) => {
       if (!result.test?.questions) return;
-      
+
       result.test.questions.forEach((question) => {
         const answer = result.answers.find((a) => a.questionId === question.id);
         const topic = question.topic || "General";
@@ -150,22 +144,17 @@ export async function getTopicBreakdown(req, res) {
 
     formatted.sort((a, b) => b.percentage - a.percentage);
 
-    console.log("Topic Breakdown:", formatted);
-
     res.json({
       topics: formatted,
     });
   } catch (err) {
-    console.error('Get topic breakdown error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-export async function getCompletedTestsAnalytics(req, res) {
+export async function getCompletedTestsAnalytics(req, res, next) {
   try {
     const { id: userId } = req.user;
-
-    console.log("Fetching completed tests analytics for user:", userId);
 
     const results = await prisma.result.findMany({
       where: { userId },
@@ -236,20 +225,15 @@ export async function getCompletedTestsAnalytics(req, res) {
       };
     });
 
-    console.log("Completed Tests Analytics:", formatted.length, "tests");
-
     res.json({ tests: formatted });
   } catch (err) {
-    console.error('Get completed tests analytics error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-export async function getCombinedAnalytics(req, res) {
+export async function getCombinedAnalytics(req, res, next) {
   try {
     const { id: userId } = req.user;
-
-    console.log("Fetching combined analytics for user:", userId);
 
     const testResults = await prisma.result.findMany({
       where: { userId },
@@ -343,7 +327,6 @@ export async function getCombinedAnalytics(req, res) {
       recentActivity,
     });
   } catch (err) {
-    console.error('Get combined analytics error:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }

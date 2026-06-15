@@ -1,43 +1,41 @@
 import { generateTestQuestions, analyzeStudentPerformance } from '../services/groq.service.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-export async function testGroq(req, res) {
+export async function testGroq(req, res, next) {
   try {
     const result = await generateTestQuestions('Excel', 'Functions', 'easy', 2);
-    return res.json({ success: true, result });
+    return sendSuccess(res, result);
   } catch (err) {
-    console.error('Groq test error:', err);
-    return res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 
-export async function debugGroq(req, res) {
+export async function debugGroq(req, res, next) {
   try {
     const result = await generateTestQuestions('Excel', 'General', 'easy', 1);
-    return res.json({ success: true, result });
+    return sendSuccess(res, result);
   } catch (err) {
-    console.error('Groq debug error:', err);
-    return res.status(500).json({ error: err.message });
+    next(err);
   }
 }
 
-export async function generateAITest(req, res) {
+export async function generateAITest(req, res, next) {
   try {
     const { subject, topic, difficulty, numberOfQuestions } = req.body;
 
     if (!subject || !topic) {
-      return res.status(400).json({ error: 'Subject and topic are required' });
+      return sendError(res, 'Subject and topic are required', 400);
     }
 
     if (!['easy', 'medium', 'hard', 'mixed'].includes(difficulty)) {
-      return res.status(400).json({ error: 'Difficulty must be easy, medium, hard, or mixed' });
+      return sendError(res, 'Difficulty must be easy, medium, hard, or mixed', 400);
     }
 
     const numQuestions = Math.min(Math.max(parseInt(numberOfQuestions) || 5, 1), 20);
 
     const questions = await generateTestQuestions(subject, topic, difficulty, numQuestions);
 
-    return res.json({
-      success: true,
+    return sendSuccess(res, {
       questions,
       metadata: {
         subject,
@@ -47,19 +45,16 @@ export async function generateAITest(req, res) {
       },
     });
   } catch (err) {
-    console.error('AI test generation error:', err);
-    return res.status(500).json({
-      error: err instanceof Error ? err.message : 'Failed to generate test questions',
-    });
+    next(err);
   }
 }
 
-export async function analyzePerformance(req, res) {
+export async function analyzePerformance(req, res, next) {
   try {
     const { studentName, answers, topics } = req.body;
 
     if (!answers || !Array.isArray(answers) || answers.length === 0) {
-      return res.status(400).json({ error: 'Answers array is required' });
+      return sendError(res, 'Answers array is required', 400);
     }
 
     const analysis = await analyzeStudentPerformance(
@@ -68,14 +63,8 @@ export async function analyzePerformance(req, res) {
       topics || []
     );
 
-    return res.json({
-      success: true,
-      analysis,
-    });
+    return sendSuccess(res, { analysis });
   } catch (err) {
-    console.error('AI performance analysis error:', err);
-    return res.status(500).json({
-      error: err instanceof Error ? err.message : 'Failed to analyze performance',
-    });
+    next(err);
   }
 }

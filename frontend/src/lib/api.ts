@@ -1,41 +1,160 @@
-// SkillLab API Service
-// Centralized fetch wrapper for all backend calls
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  message: string;
+  data: T;
+  errors?: Array<{ field: string; message: string }>;
+}
 
-function getToken(): string | null {
+interface PaginatedResponse<T> extends ApiResponse<T[]> {
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+class ApiError extends Error {
+  status: number;
+  errors?: Array<{ field: string; message: string }>;
+
+  constructor(message: string, status: number, errors?: Array<{ field: string; message: string }>) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.errors = errors;
+  }
+}
+
+function getAccessToken(): string | null {
   return localStorage.getItem('skilllab_token');
 }
 
+function getRefreshToken(): string | null {
+  return localStorage.getItem('skilllab_refresh');
+}
+
+function setTokens(access: string, refresh: string): void {
+  localStorage.setItem('skilllab_token', access);
+  localStorage.setItem('skilllab_refresh', refresh);
+}
+
+function clearTokens(): void {
+  localStorage.removeItem('skilllab_token');
+  localStorage.removeItem('skilllab_refresh');
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = getRefreshToken();
+  if (!refresh) return null;
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: refresh }),
+    });
+
+    if (!res.ok) {
+      clearTokens();
+      return null;
+    }
+
+    const data: ApiResponse<{ accessToken: string; refreshToken: string }> = await res.json();
+    if (data.success && data.data) {
+      setTokens(data.data.accessToken, data.data.refreshToken);
+      return data.data.accessToken;
+    }
+    return null;
+  } catch {
+    clearTokens();
+    return null;
+  }
+}
+
 async function request<T>(
-  method: string,
-  path: string,
-  body?: unknown,
-  auth = true
+  endpoint: string,
+  options: RequestInit = {},
+  retries = 1
 ): Promise<T> {
+  const token = getAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
   };
 
-  if (auth) {
-    const token = getToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
+  const config: RequestInit = {
+    ...options,
     headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  };
 
-  const data = await res.json();
+  try {
+    let res = await fetch(`${API_BASE}${endpoint}`, config);
 
-  if (!res.ok) {
-    throw new Error(data.message || data.error || `Request failed: ${res.status}`);
+    if (res.status === 401 && token) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        headers['Authorization'] = `Bearer ${newToken}`;
+        res = await fetch(`${API_BASE}${endpoint}`, { ...config, headers });
+      }
+    }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ message: res.statusText }));
+      throw new ApiError(
+        body.message || `Request failed with status ${res.status}`,
+        res.status,
+        body.errors
+      );
+    }
+
+    const json = await res.json();
+
+    if (json && typeof json.success === 'boolean') {
+      if (!json.success) {
+        throw new ApiError(json.message || 'Request failed', res.status, json.errors);
+      }
+      return json.data as T;
+    }
+
+    return json as T;
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, 1000));
+      return request<T>(endpoint, options, retries - 1);
+    }
+
+    throw new ApiError('Network error. Please check your connection.', 0);
   }
-
-  return data as T;
 }
+
+export const api = {
+  get: <T>(endpoint: string) => request<T>(endpoint, { method: 'GET' }),
+  post: <T>(endpoint: string, data?: unknown) =>
+    request<T>(endpoint, { method: 'POST', body: data ? JSON.stringify(data) : undefined }),
+  put: <T>(endpoint: string, data: unknown) =>
+    request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
+  patch: <T>(endpoint: string, data: unknown) =>
+    request<T>(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: <T>(endpoint: string) => request<T>(endpoint, { method: 'DELETE' }),
+};
+
+export const tokenStorage = {
+  set: (token: string) => localStorage.setItem('skilllab_token', token),
+  get: () => localStorage.getItem('skilllab_token'),
+  remove: () => localStorage.removeItem('skilllab_token'),
+};
+
+export { ApiError, ApiResponse, PaginatedResponse };
+export { getAccessToken, getRefreshToken, setTokens, clearTokens };
 
 // ─── Auth ────────────────────────────────────────────────
 
@@ -49,7 +168,8 @@ export interface AuthUser {
 }
 
 export interface AuthResponse {
-  token: string;
+  accessToken: string;
+  refreshToken: string;
   user: AuthUser;
 }
 
@@ -60,12 +180,12 @@ export const authApi = {
     password: string;
     role: string;
     instituteName?: string;
-  }) => request<AuthResponse>('POST', '/auth/register', data, false),
+  }) => api.post<AuthResponse>('/auth/register', data),
 
   login: (email: string, password: string) =>
-    request<AuthResponse>('POST', '/auth/login', { email, password }, false),
+    api.post<AuthResponse>('/auth/login', { email, password }),
 
-  me: () => request<AuthUser>('GET', '/auth/me'),
+  me: () => api.get<AuthUser>('/auth/me'),
 };
 
 // ─── Batch ────────────────────────────────────────────────
@@ -96,30 +216,6 @@ export interface BatchStudentsResponse {
   batchName: string;
   students: BatchStudent[];
 }
-
-export const batchApi = {
-  create: (name: string) => request<Batch>('POST', '/batch/create', { name }),
-
-  join: (inviteCode: string) =>
-    request<{ message: string; batch: Batch }>('POST', '/batch/join', { inviteCode }),
-
-  get: () => request<Batch[]>('GET', '/batch/get'),
-
-  getMy: () => request<Batch[]>('GET', '/batch/my'),
-
-  getAdminBatches: () => request<Batch[]>('GET', '/batch/admin/batches'),
-
-  getStudentBatches: () => request<Batch[]>('GET', '/batch/student/batches'),
-
-  getStudents: (batchId: string) =>
-    request<BatchStudentsResponse>('GET', `/batch/${batchId}/students`),
-
-  getAnalytics: (batchId: string) =>
-    request<BatchAnalyticsResponse>('GET', `/batch/${batchId}/analytics`),
-
-  delete: (batchId: string) =>
-    request<{ message: string }>('DELETE', `/batch/${batchId}`),
-};
 
 export interface StudentAnalytics {
   id: string;
@@ -188,6 +284,30 @@ export interface BatchAnalyticsResponse {
   insights: Insights;
   scoreDistribution: ScoreDistribution;
 }
+
+export const batchApi = {
+  create: (name: string) => api.post<Batch>('/batch/create', { name }),
+
+  join: (inviteCode: string) =>
+    api.post<{ message: string; batch: Batch }>('/batch/join', { inviteCode }),
+
+  get: () => api.get<Batch[]>('/batch/get'),
+
+  getMy: () => api.get<Batch[]>('/batch/my'),
+
+  getAdminBatches: () => api.get<Batch[]>('/batch/admin/batches'),
+
+  getStudentBatches: () => api.get<Batch[]>('/batch/student/batches'),
+
+  getStudents: (batchId: string) =>
+    api.get<BatchStudentsResponse>(`/batch/${batchId}/students`),
+
+  getAnalytics: (batchId: string) =>
+    api.get<BatchAnalyticsResponse>(`/batch/${batchId}/analytics`),
+
+  delete: (batchId: string) =>
+    api.delete<{ message: string }>(`/batch/${batchId}`),
+};
 
 // ─── Test ────────────────────────────────────────────────
 
@@ -337,31 +457,31 @@ export const testApi = {
     questions: NewQuestion[];
     expiryDate?: string;
   }) =>
-    request<TestFull>('POST', '/test/create', data),
+    api.post<TestFull>('/test/create', data),
 
-  get: () => request<TestSummary[]>('GET', '/test/get'),
+  get: () => api.get<TestSummary[]>('/test/get'),
 
-  getById: (testId: string) => request<TestFull>('GET', `/test/${testId}`),
+  getById: (testId: string) => api.get<TestFull>(`/test/${testId}`),
 
-  getByBatch: (batchId: string) => request<TestForBatch[]>('GET', `/test/batch/${batchId}`),
+  getByBatch: (batchId: string) => api.get<TestForBatch[]>(`/test/batch/${batchId}`),
 
-  getUpcoming: () => request<UpcomingTest[]>('GET', '/test/upcoming'),
+  getUpcoming: () => api.get<UpcomingTest[]>('/test/upcoming'),
 
   getStudentTests: (batchId?: string) =>
-    request<TestSummary[]>('GET', `/test/student${batchId ? `?batchId=${batchId}` : ''}`),
+    api.get<TestSummary[]>(`/test/student${batchId ? `?batchId=${batchId}` : ''}`),
 
-  getGeneral: () => request<TestSummary[]>('GET', '/test/general'),
+  getGeneral: () => api.get<TestSummary[]>('/test/general'),
 
-  getHistory: () => request<TestStudentHistory[]>('GET', '/test/history'),
+  getHistory: () => api.get<TestStudentHistory[]>('/test/history'),
 
   getSubmissionAnalytics: (submissionId: string) =>
-    request<TestSubmissionAnalytics>('GET', `/test/submission/${submissionId}`),
+    api.get<TestSubmissionAnalytics>(`/test/submission/${submissionId}`),
 
   submit: (testId: string, answers: { questionId: string; selectedOption: string }[]) =>
-    request<SubmitResult>('POST', '/test/submit', { testId, answers }),
+    api.post<SubmitResult>('/test/submit', { testId, answers }),
 
   delete: (testId: string) =>
-    request<{ success: boolean; message: string }>('DELETE', `/test/${testId}`),
+    api.delete<{ success: boolean; message: string }>(`/test/${testId}`),
 };
 
 // ─── Results ─────────────────────────────────────────────
@@ -387,9 +507,9 @@ export interface ResultSummary {
 }
 
 export const resultApi = {
-  get: () => request<ResultSummary[]>('GET', '/result/get'),
+  get: () => api.get<ResultSummary[]>('/result/get'),
 
-  getById: (resultId: string) => request<ResultSummary>('GET', `/result/${resultId}`),
+  getById: (resultId: string) => api.get<ResultSummary>(`/result/${resultId}`),
 };
 
 // ─── Leaderboard ─────────────────────────────────────────
@@ -407,10 +527,10 @@ export interface LeaderboardEntry {
 
 export const leaderboardApi = {
   get: (batchId?: string) =>
-    request<LeaderboardEntry[]>('GET', `/leaderboard${batchId ? `?batchId=${batchId}` : ''}`),
+    api.get<LeaderboardEntry[]>(`/leaderboard${batchId ? `?batchId=${batchId}` : ''}`),
 
   getBatch: (batchId: string) =>
-    request<LeaderboardEntry[]>('GET', `/leaderboard/batch/${batchId}`),
+    api.get<LeaderboardEntry[]>(`/leaderboard/batch/${batchId}`),
 };
 
 // ─── Dashboard ───────────────────────────────────────────
@@ -450,12 +570,6 @@ export interface StudentDashboardData {
   }[];
 }
 
-export const dashboardApi = {
-  admin: () => request<AdminDashboardData>('GET', '/dashboard/admin'),
-  student: () => request<StudentDashboardData>('GET', '/dashboard/student'),
-  getBatchPerformance: () => request<BatchPerformanceResponse>('GET', '/dashboard/batch-performance'),
-};
-
 export interface BatchPerformanceData {
   batchId: string;
   batchName: string;
@@ -483,6 +597,12 @@ export interface BatchPerformanceResponse {
   trend: BatchPerformanceTrend[];
 }
 
+export const dashboardApi = {
+  admin: () => api.get<AdminDashboardData>('/dashboard/admin'),
+  student: () => api.get<StudentDashboardData>('/dashboard/student'),
+  getBatchPerformance: () => api.get<BatchPerformanceResponse>('/dashboard/batch-performance'),
+};
+
 // ─── Admin Students ─────────────────────────────────────
 
 export interface AdminStudent {
@@ -509,8 +629,8 @@ export interface StudentAnalyticsData {
 }
 
 export const adminApi = {
-  getStudents: () => request<AdminStudent[]>('GET', '/dashboard/students'),
-  getStudentAnalytics: (studentId: string) => request<StudentAnalyticsData>('GET', `/dashboard/student/${studentId}`),
+  getStudents: () => api.get<AdminStudent[]>('/dashboard/students'),
+  getStudentAnalytics: (studentId: string) => api.get<StudentAnalyticsData>(`/dashboard/student/${studentId}`),
 };
 
 // ─── AI Generation ────────────────────────────────────────
@@ -557,13 +677,13 @@ export const aiApi = {
     topic: string;
     difficulty: Difficulty;
     numberOfQuestions: number;
-  }) => request<AIGenerateResponse>('POST', '/ai/generate-test', data),
+  }) => api.post<AIGenerateResponse>('/ai/generate-test', data),
 
   analyzePerformance: (data: {
     studentName: string;
     answers: Array<{ question: string; isCorrect: boolean }>;
     topics?: string[];
-  }) => request<AIAnalysisResponse>('POST', '/ai/analyze-performance', data),
+  }) => api.post<AIAnalysisResponse>('/ai/analyze-performance', data),
 };
 
 // ─── Test Analytics ───────────────────────────────────────
@@ -614,7 +734,7 @@ export interface TestAnalyticsResponse {
 }
 
 export const testAnalyticsApi = {
-  get: (testId: string) => request<TestAnalyticsResponse>('GET', `/test/${testId}/analytics`),
+  get: (testId: string) => api.get<TestAnalyticsResponse>(`/test/${testId}/analytics`),
 };
 
 // ─── Test Result ───────────────────────────────────────
@@ -650,24 +770,10 @@ export interface TestResultData {
 }
 
 export const testResultApi = {
-  get: (testId: string) => request<TestResultData>('GET', `/test/${testId}/result`),
+  get: (testId: string) => api.get<TestResultData>(`/test/${testId}/result`),
 };
 
 // ─── Student Analytics ───────────────────────────────
-
-export interface StudentAnalyticsData {
-  testsTaken: number;
-  avgScore: number;
-  rank: number | null;
-  completion: number;
-  passedCount: number;
-  recentTests: Array<{
-    testId: string;
-    score: number;
-    percentage: number;
-    submittedAt: string;
-  }>;
-}
 
 export interface CombinedAnalytics {
   tests: {
@@ -703,9 +809,9 @@ export interface CombinedAnalytics {
 }
 
 export const studentApi = {
-  getAnalytics: () => request<StudentAnalyticsData>('GET', '/student/analytics'),
-  getTopicBreakdown: () => request<{ topics: Array<{ topic: string; total: number; correct: number; percentage: number }> }>('GET', '/student/topic-breakdown'),
-  getCompletedTestsAnalytics: () => request<{
+  getAnalytics: () => api.get<StudentAnalyticsData>('/student/analytics'),
+  getTopicBreakdown: () => api.get<{ topics: Array<{ topic: string; total: number; correct: number; percentage: number }> }>('/student/topic-breakdown'),
+  getCompletedTestsAnalytics: () => api.get<{
     tests: Array<{
       testId: string;
       title: string;
@@ -719,16 +825,8 @@ export const studentApi = {
       topics: Array<{ topic: string; total: number; correct: number; percentage: number }>;
       weakTopics: string[];
     }>;
-  }>('GET', '/student/completed-tests-analytics'),
-  getCombinedAnalytics: () => request<CombinedAnalytics>('GET', '/student/combined-analytics'),
-};
-
-// ─── Token helpers ────────────────────────────────────────
-
-export const tokenStorage = {
-  set: (token: string) => localStorage.setItem('skilllab_token', token),
-  get: () => localStorage.getItem('skilllab_token'),
-  remove: () => localStorage.removeItem('skilllab_token'),
+  }>('/student/completed-tests-analytics'),
+  getCombinedAnalytics: () => api.get<CombinedAnalytics>('/student/combined-analytics'),
 };
 
 // ─── Coding Lab ───────────────────────────────────────
@@ -937,7 +1035,6 @@ export interface CodingTestAnalytics {
     wrongAttempts: number;
     totalAttempts: number;
     accuracy: number;
-
   }>;
   mostDifficultQuestions: Array<{
     questionId: string;
@@ -960,32 +1057,32 @@ export interface CodingTestAnalytics {
 }
 
 export const codingApi = {
-  getBatches: () => request<CodingBatch[]>('GET', '/coding/batches'),
+  getBatches: () => api.get<CodingBatch[]>('/coding/batches'),
 
-  getStudentQuestions: () => request<CodingQuestion[]>('GET', '/student/coding/questions'),
+  getStudentQuestions: () => api.get<CodingQuestion[]>('/student/coding/questions'),
 
   getQuestions: (batchId?: string, type?: string) =>
-    request<CodingQuestion[]>('GET', `/coding/questions?${batchId ? `batchId=${batchId}&` : ''}${type ? `type=${type}` : ''}`),
+    api.get<CodingQuestion[]>(`/coding/questions?${batchId ? `batchId=${batchId}&` : ''}${type ? `type=${type}` : ''}`),
 
-  getQuestionById: (id: string) => request<CodingQuestionFull>('GET', `/coding/question/${id}`),
+  getQuestionById: (id: string) => api.get<CodingQuestionFull>(`/coding/question/${id}`),
 
   getTests: (batchId?: string) =>
-    request<CodingTest[]>('GET', `/coding/tests${batchId ? `?batchId=${batchId}` : ''}`),
+    api.get<CodingTest[]>(`/coding/tests${batchId ? `?batchId=${batchId}` : ''}`),
 
-  getTestsForStudent: () => request<CodingTest[]>('GET', '/coding/student/tests'),
+  getTestsForStudent: () => api.get<CodingTest[]>('/coding/student/tests'),
 
-  getTestById: (id: string) => request<CodingTestWithQuestions>('GET', `/coding/test/${id}`),
+  getTestById: (id: string) => api.get<CodingTestWithQuestions>(`/coding/test/${id}`),
 
   runCode: (code: string, language: string, questionId?: string) =>
-    request<RunCodeResult>('POST', '/coding/run', { code, language, questionId }),
+    api.post<RunCodeResult>('/coding/run', { code, language, questionId }),
 
   submitCode: (questionId: string, code: string, language: string, testId?: string) =>
-    request<CodingSubmitResult>('POST', '/coding/submit', { questionId, code, language, testId }),
+    api.post<CodingSubmitResult>('/coding/submit', { questionId, code, language, testId }),
 
-  getAnalytics: () => request<CodingAnalytics>('GET', '/coding/analytics'),
+  getAnalytics: () => api.get<CodingAnalytics>('/coding/analytics'),
 
   getStudentAnalytics: (batchId: string) =>
-    request<{
+    api.get<{
       totalSubmissions: number;
       totalCodingTests: number;
       avgAccuracy: number;
@@ -1006,10 +1103,10 @@ export const codingApi = {
         status: string;
         createdAt: string;
       }>;
-    }>('GET', `/coding/student/analytics?batchId=${batchId}`),
+    }>(`/coding/student/analytics?batchId=${batchId}`),
 
   getCodingHistory: (batchId: string) =>
-    request<Array<{
+    api.get<Array<{
       id: string;
       questionId: string;
       testId: string | null;
@@ -1025,16 +1122,16 @@ export const codingApi = {
       memory: number | null;
       status: string;
       createdAt: string;
-    }>>('GET', `/coding/student/history?batchId=${batchId}`),
+    }>>(`/coding/student/history?batchId=${batchId}`),
 
   getAdminAnalytics: (batchId?: string) =>
-    request<CodingAdminAnalytics>('GET', `/coding/admin/analytics${batchId ? `?batchId=${batchId}` : ''}`),
+    api.get<CodingAdminAnalytics>(`/coding/admin/analytics${batchId ? `?batchId=${batchId}` : ''}`),
 
   generateQuestion: (topic: string, difficulty: string, language: string) =>
-    request<GeneratedCodingQuestion>('POST', '/coding/admin/coding/generate', { topic, difficulty, language }),
+    api.post<GeneratedCodingQuestion>('/coding/admin/coding/generate', { topic, difficulty, language }),
 
   getAdminQuestions: (batchId?: string) =>
-    request<AdminCodingQuestion[]>('GET', `/coding/admin/coding/questions${batchId ? `?batchId=${batchId}` : ''}`),
+    api.get<AdminCodingQuestion[]>(`/coding/admin/coding/questions${batchId ? `?batchId=${batchId}` : ''}`),
 
   createQuestion: (data: {
     batchId: string;
@@ -1045,7 +1142,7 @@ export const codingApi = {
     description: string;
     starterCode: string;
     testCases: Array<{ input: string; expectedOutput: string }>;
-  }) => request<AdminCodingQuestion>('POST', '/coding/admin/coding/question', data),
+  }) => api.post<AdminCodingQuestion>('/coding/admin/coding/question', data),
 
   updateQuestion: (id: string, data: Partial<{
     type: string;
@@ -1055,33 +1152,33 @@ export const codingApi = {
     description: string;
     starterCode: string;
     testCases: Array<{ input: string; expectedOutput: string }>;
-  }>) => request<AdminCodingQuestion>('PUT', `/coding/admin/coding/question/${id}`, data),
+  }>) => api.put<AdminCodingQuestion>(`/coding/admin/coding/question/${id}`, data),
 
-  deleteQuestion: (id: string) => request<void>('DELETE', `/coding/admin/coding/question/${id}`),
+  deleteQuestion: (id: string) => api.delete<void>(`/coding/admin/coding/question/${id}`),
 
-  getTestAnalytics: (testId: string) => request<CodingTestAnalytics>('GET', `/coding/test/${testId}/analytics`),
+  getTestAnalytics: (testId: string) => api.get<CodingTestAnalytics>(`/coding/test/${testId}/analytics`),
 
   createTest: (data: {
     batchId: string;
     title: string;
     duration?: number;
     questionIds?: string[];
-  }) => request<{ id: string }>('POST', '/coding/admin/coding/test', data),
+  }) => api.post<{ id: string }>('/coding/admin/coding/test', data),
 
   getAdminTests: (batchId?: string) =>
-    request<Array<{
+    api.get<Array<{
       id: string;
       title: string;
       duration: number;
       batchId: string;
       batchName?: string;
       _count: { questions: number };
-    }>>('GET', `/coding/admin/coding/tests${batchId ? `?batchId=${batchId}` : ''}`),
+    }>>(`/coding/admin/coding/tests${batchId ? `?batchId=${batchId}` : ''}`),
 
-  deleteTest: (id: string) => request<void>('DELETE', `/coding/admin/coding/test/${id}`),
+  deleteTest: (id: string) => api.delete<void>(`/coding/admin/coding/test/${id}`),
 
   getResultById: (submissionId: string) =>
-    request<{
+    api.get<{
       id: string;
       questionId: string;
       testId: string | null;
@@ -1101,10 +1198,10 @@ export const codingApi = {
         difficulty: string;
         testCases: Array<{ input: string; expectedOutput: string }>;
       };
-    }>('GET', `/coding/student/result/${submissionId}`),
+    }>(`/coding/student/result/${submissionId}`),
 
   getInsights: (batchId: string) =>
-    request<{
+    api.get<{
       results: Array<{
         id: string;
         questionId: string;
@@ -1131,7 +1228,7 @@ export const codingApi = {
         accuracy: number;
       }>;
       totalAttempts: number;
-    }>('GET', `/coding/student/insights/${batchId}`),
+    }>(`/coding/student/insights/${batchId}`),
 };
 
 // ─── Practice Sheets ───────────────────────────────────────
@@ -1157,7 +1254,7 @@ export interface MCQQuestion {
   marks?: number;
 }
 
-export interface CodingQuestion {
+export interface CodingQuestionItem {
   id: string;
   title: string;
   description: string;
@@ -1208,7 +1305,7 @@ export interface GeneratedPracticeSheet {
   codingLanguage?: string;
   options: PracticeSheetOptions;
   mcq: MCQQuestion[];
-  coding: CodingQuestion[];
+  coding: CodingQuestionItem[];
   debug: DebugQuestion[];
 }
 
@@ -1224,11 +1321,11 @@ export interface BatchDetails {
 export type SheetType = 'mcq' | 'coding' | 'debug' | 'mixed';
 
 export const practiceSheetsApi = {
-  getBatches: () => request<PracticeSheetBatch[]>('GET', '/practice-sheets/batches'),
+  getBatches: () => api.get<PracticeSheetBatch[]>('/practice-sheets/batches'),
 
-  getTopics: () => request<string[]>('GET', '/practice-sheets/topics'),
+  getTopics: () => api.get<string[]>('/practice-sheets/topics'),
 
-  getBatchDetails: (batchId: string) => request<BatchDetails>('GET', `/practice-sheets/batch-details/${batchId}`),
+  getBatchDetails: (batchId: string) => api.get<BatchDetails>(`/practice-sheets/batch-details/${batchId}`),
 
   generateSheet: (data: {
     sheetType: SheetType;
@@ -1249,5 +1346,5 @@ export const practiceSheetsApi = {
     codingLanguage?: string;
     concepts?: string[];
     curriculum?: string[];
-  }) => request<GeneratedPracticeSheet>('POST', '/practice-sheets/generate', data),
+  }) => api.post<GeneratedPracticeSheet>('/practice-sheets/generate', data),
 };

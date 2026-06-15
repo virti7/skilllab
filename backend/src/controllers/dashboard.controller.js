@@ -1,7 +1,7 @@
 import { prisma } from '../utils/prisma.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-// GET /api/dashboard/admin
-export async function adminDashboard(req, res) {
+export async function adminDashboard(req, res, next) {
   try {
     const { instituteId } = req.user;
 
@@ -20,7 +20,6 @@ export async function adminDashboard(req, res) {
         ? Math.round(results.reduce((s, r) => s + r.percentage, 0) / results.length)
         : 0;
 
-    // Recent tests with submission counts
     const recentTests = await prisma.test.findMany({
       where: { instituteId },
       take: 5,
@@ -34,7 +33,6 @@ export async function adminDashboard(req, res) {
       },
     });
 
-    // Monthly performance (last 6 months)
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -79,22 +77,20 @@ export async function adminDashboard(req, res) {
       monthlyPerformance,
     });
   } catch (err) {
-    console.error('Admin dashboard error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/dashboard/student
-export async function studentDashboard(req, res) {
+export async function studentDashboard(req, res, next) {
   try {
     const { id: userId, instituteId } = req.user;
- 
+
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
       select: { batchId: true },
     });
     const batchIds = batchStudents.map((bs) => bs.batchId);
- 
+
     const [results, assignedTests] = await Promise.all([
       prisma.result.findMany({
         where: { userId },
@@ -118,21 +114,19 @@ export async function studentDashboard(req, res) {
         orderBy: { createdAt: 'desc' },
       }),
     ]);
- 
+
     const pendingTests = assignedTests.filter((t) => t.results.length === 0);
     const completedTests = results;
     const avgScore =
       results.length > 0
         ? Math.round(results.reduce((s, r) => s + r.percentage, 0) / results.length)
         : 0;
- 
-    // Score trend (last 7 results)
+
     const scoreTrend = results.slice(0, 7).reverse().map((r, i) => ({
       test: `T${i + 1}`,
       score: r.percentage,
     }));
- 
-    // Rank among institute students
+
     const rankData = await prisma.$queryRaw`
       SELECT rank FROM (
         SELECT
@@ -146,9 +140,9 @@ export async function studentDashboard(req, res) {
         GROUP BY u.id
       ) ranked WHERE id = ${userId}
     `;
- 
+
     const batchRank = rankData[0]?.rank ? Number(rankData[0].rank) : null;
- 
+
     return res.json({
       pendingCount: pendingTests.length,
       completedCount: completedTests.length,
@@ -166,17 +160,14 @@ export async function studentDashboard(req, res) {
       })),
     });
   } catch (err) {
-    console.error('Student dashboard error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/admin/students
-export async function getAdminStudents(req, res) {
+export async function getAdminStudents(req, res, next) {
   try {
     const { instituteId } = req.user;
 
-    // Step 1: Get all batches of admin's institute
     const batches = await prisma.batch.findMany({
       where: { instituteId },
       select: { id: true },
@@ -188,7 +179,6 @@ export async function getAdminStudents(req, res) {
       return res.json([]);
     }
 
-    // Step 2: Get all students from batch_students table
     const batchStudents = await prisma.batchStudent.findMany({
       where: { batchId: { in: batchIds } },
       include: {
@@ -203,7 +193,6 @@ export async function getAdminStudents(req, res) {
       },
     });
 
-    // Step 3: Transform with Map to avoid duplicates
     const studentsMap = new Map();
 
     batchStudents.forEach((bs) => {
@@ -240,13 +229,11 @@ export async function getAdminStudents(req, res) {
 
     return res.json(students);
   } catch (err) {
-    console.error('Get admin students error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/dashboard/batch-performance
-export async function getBatchPerformance(req, res) {
+export async function getBatchPerformance(req, res, next) {
   try {
     const { instituteId } = req.user;
 
@@ -343,24 +330,18 @@ export async function getBatchPerformance(req, res) {
       trend: trendData
     });
   } catch (err) {
-    console.error('Batch performance error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/admin/student/:id
-export async function getStudentAnalytics(req, res) {
+export async function getStudentAnalytics(req, res, next) {
   try {
     const { id: studentId } = req.params;
     const { id: adminId, role, instituteId } = req.user;
 
-    // Check role - admin or super_admin only
     if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-      return res.status(403).json({ error: 'Access denied. Admin role required.' });
+      return sendError(res, 'Access denied. Admin role required.', 403);
     }
-
-    console.log('Admin request:', { adminId, role, instituteId });
-    console.log('Fetch student:', studentId);
 
     const student = await prisma.user.findUnique({
       where: { id: studentId },
@@ -385,25 +366,16 @@ export async function getStudentAnalytics(req, res) {
     });
 
     if (!student) {
-      return res.status(404).json({ error: 'Student not found' });
+      return sendError(res, 'Student not found', 404);
     }
 
-    console.log('Student data:', {
-      id: student.id,
-      name: student.name,
-      instituteId: student.instituteId,
-      batches: student.batchStudents.map(bs => ({ batchId: bs.batch.id, instituteId: bs.batch.instituteId }))
-    });
-
-    // Verify student belongs to same institute (via user.instituteId OR batch.instituteId)
     const studentBatchInstituteIds = student.batchStudents.map(bs => bs.batch.instituteId);
     const belongsToInstitute =
       (student.instituteId && student.instituteId === instituteId) ||
       studentBatchInstituteIds.includes(instituteId);
 
     if (!belongsToInstitute) {
-      console.log('Access denied - student not in admin institute');
-      return res.status(403).json({ error: 'Unauthorized access to this student' });
+      return sendError(res, 'Unauthorized access to this student', 403);
     }
 
     const totalTests = student.results.length;
@@ -412,7 +384,6 @@ export async function getStudentAnalytics(req, res) {
         ? Math.round(student.results.reduce((s, r) => s + r.percentage, 0) / totalTests)
         : 0;
 
-    // Calculate rank using batch-based approach (same as admin students list)
     const batches = await prisma.batch.findMany({
       where: { instituteId },
       select: { id: true },
@@ -452,7 +423,6 @@ export async function getStudentAnalytics(req, res) {
 
     const rank = rankedStudents.findIndex((s) => s.id === studentId) + 1;
 
-    // Topic breakdown
     const topicStats = {};
     student.results.forEach((result) => {
       result.answers.forEach((answer) => {
@@ -472,12 +442,10 @@ export async function getStudentAnalytics(req, res) {
       percentage: Math.round((stats.correct / stats.total) * 100),
     }));
 
-    // Weak topics (< 60%)
     const weakTopics = topicBreakdown
       .filter((t) => t.percentage < 60)
       .map((t) => t.topic);
 
-    // Performance trend
     const performanceTrend = student.results.map((r, i) => ({
       test: `T${i + 1}`,
       score: r.percentage,
@@ -496,7 +464,6 @@ export async function getStudentAnalytics(req, res) {
       weakTopics,
     });
   } catch (err) {
-    console.error('Get student analytics error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }

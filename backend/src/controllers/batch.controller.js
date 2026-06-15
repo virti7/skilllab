@@ -1,18 +1,18 @@
 import { randomBytes } from 'crypto';
 import { prisma } from '../utils/prisma.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
 function generateInviteCode() {
-  return randomBytes(4).toString('hex').toUpperCase(); // e.g. "A3F7BC12"
+  return randomBytes(4).toString('hex').toUpperCase();
 }
 
-// POST /api/batch/create
-export async function createBatch(req, res) {
+export async function createBatch(req, res, next) {
   try {
     const { name } = req.body;
     const { instituteId } = req.user;
 
-    if (!name) return res.status(400).json({ error: 'Batch name is required' });
-    if (!instituteId) return res.status(400).json({ error: 'Admin must belong to an institute' });
+    if (!name) return sendError(res, 'Batch name is required', 400);
+    if (!instituteId) return sendError(res, 'Admin must belong to an institute', 400);
 
     const inviteCode = generateInviteCode();
 
@@ -24,48 +24,43 @@ export async function createBatch(req, res) {
       },
     });
 
-    return res.status(201).json(batch);
+    return sendSuccess(res, batch, 'Batch created', 201);
   } catch (err) {
-    console.error('Create batch error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// POST /api/batch/join
-export async function joinBatch(req, res) {
+export async function joinBatch(req, res, next) {
   try {
     const { inviteCode } = req.body;
     const userId = req.user.id;
 
-    if (!inviteCode) return res.status(400).json({ error: 'Invite code is required' });
+    if (!inviteCode) return sendError(res, 'Invite code is required', 400);
 
     const batch = await prisma.batch.findUnique({ where: { inviteCode } });
-    if (!batch) return res.status(404).json({ error: 'Invalid invite code' });
+    if (!batch) return sendError(res, 'Invalid invite code', 404);
 
     const existing = await prisma.batchStudent.findUnique({
       where: { batchId_userId: { batchId: batch.id, userId } },
     });
-    if (existing) return res.status(409).json({ error: 'Already joined this batch' });
+    if (existing) return sendError(res, 'Already joined this batch', 409);
 
     await prisma.batchStudent.create({
       data: { batchId: batch.id, userId },
     });
 
-    // Always assign student's instituteId from batch for consistency
     await prisma.user.update({
       where: { id: userId },
       data: { instituteId: batch.instituteId },
     });
 
-    return res.json({ message: 'Joined batch successfully', batch });
+    return sendSuccess(res, { message: 'Joined batch successfully', batch });
   } catch (err) {
-    console.error('Join batch error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/batch/:id/students
-export async function getBatchStudents(req, res) {
+export async function getBatchStudents(req, res, next) {
   try {
     const { id } = req.params;
     const { instituteId } = req.user;
@@ -76,11 +71,11 @@ export async function getBatchStudents(req, res) {
     });
 
     if (!batch) {
-      return res.status(404).json({ error: 'Batch not found' });
+      return sendError(res, 'Batch not found', 404);
     }
 
     if (batch.instituteId !== instituteId && req.user.role === 'ADMIN') {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
     const students = await prisma.batchStudent.findMany({
@@ -140,13 +135,11 @@ export async function getBatchStudents(req, res) {
       students: studentsWithResults,
     });
   } catch (err) {
-    console.error('Get batch students error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/batch/get
-export async function getBatches(req, res) {
+export async function getBatches(req, res, next) {
   try {
     const { role, instituteId, id: userId } = req.user;
 
@@ -172,7 +165,6 @@ export async function getBatches(req, res) {
       );
     }
 
-    // Student: get their batches
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
       include: {
@@ -195,33 +187,29 @@ export async function getBatches(req, res) {
       }))
     );
   } catch (err) {
-    console.error('Get batches error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-export async function getAdminBatches(req, res) {
+export async function getAdminBatches(req, res, next) {
   try {
     const { role, instituteId } = req.user;
-    
+
     if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
-    // Return all batches for now (filter by instituteId can be added later)
     const batches = await prisma.batch.findMany({
       orderBy: { createdAt: 'desc' }
     });
 
-    console.log("Admin batches:", batches.length);
     return res.json(batches);
   } catch (err) {
-    console.error('Get admin batches error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-export async function getStudentBatches(req, res) {
+export async function getStudentBatches(req, res, next) {
   try {
     const userId = req.user.id;
 
@@ -240,13 +228,11 @@ export async function getStudentBatches(req, res) {
 
     return res.json(batches);
   } catch (err) {
-    console.error('Get student batches error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// DELETE /api/batch/:batchId
-export async function deleteBatch(req, res) {
+export async function deleteBatch(req, res, next) {
   try {
     const { batchId } = req.params;
     const { instituteId, role } = req.user;
@@ -257,11 +243,11 @@ export async function deleteBatch(req, res) {
     });
 
     if (!batch) {
-      return res.status(404).json({ error: 'Batch not found' });
+      return sendError(res, 'Batch not found', 404);
     }
 
     if (role === 'ADMIN' && batch.instituteId !== instituteId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
     await prisma.$transaction(async (tx) => {
@@ -285,9 +271,8 @@ export async function deleteBatch(req, res) {
       await tx.batch.delete({ where: { id: batchId } });
     });
 
-    return res.json({ message: 'Batch deleted successfully' });
+    return sendSuccess(res, { message: 'Batch deleted successfully' });
   } catch (err) {
-    console.error('Delete batch error:', err);
-    return res.status(500).json({ error: 'Failed to delete batch' });
+    next(err);
   }
 }

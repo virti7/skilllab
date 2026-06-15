@@ -1,7 +1,7 @@
 import { prisma } from '../utils/prisma.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-// GET /api/result/get  — student's own results or admin's institute results
-export async function getResults(req, res) {
+export async function getResults(req, res, next) {
   try {
     const { role, id: userId, instituteId } = req.user;
 
@@ -47,7 +47,6 @@ export async function getResults(req, res) {
       );
     }
 
-    // Student: their own results
     const results = await prisma.result.findMany({
       where: { userId },
       include: {
@@ -102,13 +101,11 @@ export async function getResults(req, res) {
       }))
     );
   } catch (err) {
-    console.error('Get results error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/result/:resultId  — detailed result for PDF
-export async function getResultById(req, res) {
+export async function getResultById(req, res, next) {
   try {
     const { resultId } = req.params;
     const { id: userId, role } = req.user;
@@ -131,11 +128,10 @@ export async function getResultById(req, res) {
       },
     });
 
-    if (!result) return res.status(404).json({ error: 'Result not found' });
+    if (!result) return sendError(res, 'Result not found', 404);
 
-    // Only allow own results for students
     if (role === 'STUDENT' && result.userId !== userId) {
-      return res.status(403).json({ error: 'Forbidden' });
+      return sendError(res, 'Forbidden', 403);
     }
 
     return res.json({
@@ -162,7 +158,6 @@ export async function getResultById(req, res) {
       })),
     });
   } catch (err) {
-    console.error('Get result by id error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }

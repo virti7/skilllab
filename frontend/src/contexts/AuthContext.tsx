@@ -5,7 +5,13 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { authApi, tokenStorage, AuthUser } from "@/lib/api";
+import {
+  authApi,
+  setTokens,
+  getAccessToken,
+  clearTokens,
+  AuthUser,
+} from "@/lib/api";
 
 export type UserRole = "super_admin" | "admin" | "student";
 
@@ -36,19 +42,7 @@ interface AuthContextType {
     instituteName?: string;
   }) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
-  // Legacy mock login (kept for demo / super_admin fallback)
-  login: (role: UserRole) => void;
 }
-
-const mockUsers: Record<string, User> = {
-  super_admin: {
-    id: "1",
-    name: "Vikram Patel",
-    email: "vikram@skilllab.io",
-    role: "super_admin",
-    avatar: "VP",
-  },
-};
 
 function apiUserToUser(apiUser: AuthUser): User {
   return {
@@ -73,9 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount: restore session from token
   useEffect(() => {
-    const token = tokenStorage.get();
+    const token = getAccessToken();
     if (!token) {
       setIsLoading(false);
       return;
@@ -86,16 +79,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(apiUserToUser(apiUser));
       })
       .catch(() => {
-        tokenStorage.remove();
+        clearTokens();
       })
       .finally(() => setIsLoading(false));
   }, []);
 
   const loginWithCredentials = async (email: string, password: string) => {
     try {
-      const { token, user: apiUser } = await authApi.login(email, password);
-      tokenStorage.set(token);
-      setUser(apiUserToUser(apiUser));
+      const data = await authApi.login(email, password);
+      setTokens(data.accessToken, data.refreshToken);
+      setUser(apiUserToUser(data.user));
       return { success: true };
     } catch (err: unknown) {
       return {
@@ -113,9 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     instituteName?: string;
   }) => {
     try {
-      const { token, user: apiUser } = await authApi.register(data);
-      tokenStorage.set(token);
-      setUser(apiUserToUser(apiUser));
+      const result = await authApi.register(data);
+      setTokens(result.accessToken, result.refreshToken);
+      setUser(apiUserToUser(result.user));
       return { success: true };
     } catch (err: unknown) {
       return {
@@ -126,13 +119,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    tokenStorage.remove();
+    clearTokens();
     setUser(null);
-  };
-
-  // Legacy mock login (kept for super_admin demo)
-  const login = (role: UserRole) => {
-    if (mockUsers[role]) setUser(mockUsers[role]);
   };
 
   return (

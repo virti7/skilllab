@@ -1,7 +1,7 @@
 import { prisma } from '../utils/prisma.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-// GET /api/test/batch/:batchId
-export async function getTestsByBatch(req, res) {
+export async function getTestsByBatch(req, res, next) {
   try {
     const { batchId } = req.params;
     const { instituteId } = req.user;
@@ -45,13 +45,11 @@ export async function getTestsByBatch(req, res) {
 
     return res.json(testsWithStats);
   } catch (err) {
-    console.error('Get tests by batch error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/test/upcoming
-export async function getUpcomingTests(req, res) {
+export async function getUpcomingTests(req, res, next) {
   try {
     const { id: userId, instituteId } = req.user;
 
@@ -66,9 +64,6 @@ export async function getUpcomingTests(req, res) {
       select: { testId: true },
     });
     const completedIds = completedTestIds.map((r) => r.testId);
-
-    console.log("User ID:", userId);
-    console.log("Batch IDs:", batchIds);
 
     const upcomingTests = await prisma.test.findMany({
       where: {
@@ -87,13 +82,6 @@ export async function getUpcomingTests(req, res) {
       take: 10,
     });
 
-    const now = new Date();
-    const validUpcomingTests = upcomingTests.filter((test) => {
-      return !test.expiryDate || new Date(test.expiryDate) > now;
-    });
-
-    console.log("Upcoming tests (after expiry filter):", validUpcomingTests.length);
-
     return res.json(
       upcomingTests.map((t) => ({
         id: t.id,
@@ -105,41 +93,37 @@ export async function getUpcomingTests(req, res) {
       }))
     );
   } catch (err) {
-    console.error('Get upcoming tests error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// POST /api/test/create
-export async function createTest(req, res) {
+export async function createTest(req, res, next) {
   try {
     const { title, duration, batchId, questions, expiryDate } = req.body;
     const { id: adminId, instituteId } = req.user;
 
     if (!title || !questions || !Array.isArray(questions) || questions.length === 0) {
-      return res.status(400).json({ error: 'title and at least one question are required' });
+      return sendError(res, 'title and at least one question are required', 400);
     }
 
     if (!instituteId) {
-      return res.status(400).json({ error: 'Admin must belong to an institute' });
+      return sendError(res, 'Admin must belong to an institute', 400);
     }
 
-    // Validate questions
     for (const q of questions) {
       if (!q.questionText || !q.optionA || !q.optionB || !q.optionC || !q.optionD || !q.correctOption) {
-        return res.status(400).json({ error: 'Each question must have questionText, optionA-D, and correctOption' });
+        return sendError(res, 'Each question must have questionText, optionA-D, and correctOption', 400);
       }
       if (!['A', 'B', 'C', 'D'].includes(q.correctOption.toUpperCase())) {
-        return res.status(400).json({ error: 'correctOption must be A, B, C, or D' });
+        return sendError(res, 'correctOption must be A, B, C, or D', 400);
       }
     }
 
-    // Validate expiry date if provided
     let parsedExpiryDate = null;
     if (expiryDate) {
       parsedExpiryDate = new Date(expiryDate);
       if (isNaN(parsedExpiryDate.getTime())) {
-        return res.status(400).json({ error: 'Invalid expiry date format' });
+        return sendError(res, 'Invalid expiry date format', 400);
       }
     }
 
@@ -165,15 +149,13 @@ export async function createTest(req, res) {
       include: { questions: true },
     });
 
-    return res.status(201).json(test);
+    return sendSuccess(res, test, 'Test created', 201);
   } catch (err) {
-    console.error('Create test error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/test/get
-export async function getTests(req, res) {
+export async function getTests(req, res, next) {
   try {
     const { role, instituteId, id: userId } = req.user;
 
@@ -203,16 +185,12 @@ export async function getTests(req, res) {
       );
     }
 
-    // Student: fetch tests assigned to their batches
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
       select: { batchId: true },
     });
 
     const batchIds = batchStudents.map((bs) => bs.batchId);
-
-    console.log("User ID:", userId);
-    console.log("Batch IDs:", batchIds);
 
     const tests = await prisma.test.findMany({
       where: {
@@ -233,14 +211,10 @@ export async function getTests(req, res) {
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log("Tests found (before expiry filter):", tests.length);
-
     const now = new Date();
     const validTests = tests.filter((test) => {
       return !test.expiryDate || new Date(test.expiryDate) > now;
     });
-
-    console.log("Tests found (after expiry filter):", validTests.length);
 
     const finalTests = validTests.map((t) => ({
       id: t.id,
@@ -255,19 +229,14 @@ export async function getTests(req, res) {
 
     return res.json(finalTests);
   } catch (err) {
-    console.error('Get tests error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/test/:testId
-export async function getTestById(req, res) {
+export async function getTestById(req, res, next) {
   try {
     const { testId } = req.params;
     const { id: userId, role } = req.user;
-
-    console.log("=== GET TEST BY ID ===");
-    console.log("testId:", testId);
 
     const test = await prisma.test.findUnique({
       where: { id: testId },
@@ -289,17 +258,9 @@ export async function getTestById(req, res) {
     });
 
     if (!test) {
-      console.log("Test not found:", testId);
-      return res.status(404).json({ error: "Test not found" });
+      return sendError(res, "Test not found", 404);
     }
 
-    console.log("Test found:", {
-      id: test.id,
-      title: test.title,
-      questions: test.questions.length,
-    });
-
-    // 🚫 Prevent re-attempt
     if (role === "STUDENT") {
       const existingResult = await prisma.result.findUnique({
         where: {
@@ -311,36 +272,26 @@ export async function getTestById(req, res) {
       });
 
       if (existingResult) {
-        return res.status(409).json({
-          error: "You have already submitted this test",
-          result: existingResult,
-        });
+        return sendError(res, "You have already submitted this test", 409);
       }
     }
-
-    console.log("=== END GET TEST ===");
 
     return res.json({
       ...test,
       batchName: test.batch?.name || null,
     });
-
   } catch (err) {
-    console.error("Get test by id error:", err);
-    return res.status(500).json({
-      error: "Internal server error",
-    });
+    next(err);
   }
 }
 
-// DELETE /api/test/:testId
-export async function deleteTest(req, res) {
+export async function deleteTest(req, res, next) {
   try {
     const { testId } = req.params;
     const { role, instituteId } = req.user;
 
     if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-      return res.status(403).json({ error: 'Only admins can delete tests' });
+      return sendError(res, 'Only admins can delete tests', 403);
     }
 
     const test = await prisma.test.findUnique({
@@ -349,11 +300,11 @@ export async function deleteTest(req, res) {
     });
 
     if (!test) {
-      return res.status(404).json({ error: 'Test not found' });
+      return sendError(res, 'Test not found', 404);
     }
 
     if (test.instituteId !== instituteId) {
-      return res.status(403).json({ error: 'You can only delete tests from your institute' });
+      return sendError(res, 'You can only delete tests from your institute', 403);
     }
 
     await prisma.$transaction(async (tx) => {
@@ -371,27 +322,23 @@ export async function deleteTest(req, res) {
       });
     });
 
-    return res.json({ success: true, message: 'Test deleted successfully' });
+    return sendSuccess(res, { message: 'Test deleted successfully' });
   } catch (err) {
-    console.error('Delete test error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/tests/student?batchId=...
-export async function getTestsForStudent(req, res) {
+export async function getTestsForStudent(req, res, next) {
   try {
     const { batchId } = req.query;
     const { id: userId, instituteId } = req.user;
 
-    // Get user's enrolled batch IDs
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
       select: { batchId: true },
     });
     const enrolledBatchIds = batchStudents.map((bs) => bs.batchId);
 
-    // Get all completed test IDs with results
     const completedTests = await prisma.result.findMany({
       where: { userId },
       select: { testId: true, score: true, percentage: true, totalMarks: true, submittedAt: true },
@@ -404,20 +351,17 @@ export async function getTestsForStudent(req, res) {
     );
     const completedTestIds = completedTests.map((r) => r.testId);
 
-    // Build where clause
     let whereClause = {
       isActive: true,
       OR: [],
     };
 
     if (batchId) {
-      // Verify student belongs to this batch
       if (!enrolledBatchIds.includes(batchId)) {
-        return res.status(403).json({ error: 'You are not enrolled in this batch' });
+        return sendError(res, 'You are not enrolled in this batch', 403);
       }
       whereClause.OR.push({ batchId });
     } else {
-      // All enrolled batch tests + general tests (no batch)
       whereClause.OR.push({ batchId: { in: enrolledBatchIds } });
       whereClause.OR.push({ batchId: null, instituteId });
     }
@@ -431,13 +375,11 @@ export async function getTestsForStudent(req, res) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Filter by batchId if specified
     let filteredTests = tests;
     if (batchId) {
       filteredTests = tests.filter(t => t.batchId === batchId);
     }
 
-    // Check for expired tests
     const now = new Date();
 
     const result = filteredTests.map((t) => {
@@ -463,24 +405,20 @@ export async function getTestsForStudent(req, res) {
 
     return res.json(result);
   } catch (err) {
-    console.error('Get tests for student error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/tests/general - General tests not tied to any batch
-export async function getGeneralTests(req, res) {
+export async function getGeneralTests(req, res, next) {
   try {
     const { id: userId, instituteId } = req.user;
 
-    // Get enrolled batch IDs
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
       select: { batchId: true },
     });
     const enrolledBatchIds = batchStudents.map((bs) => bs.batchId);
 
-    // Get completed test IDs
     const completedTests = await prisma.result.findMany({
       where: { userId },
       select: { testId: true },
@@ -500,7 +438,6 @@ export async function getGeneralTests(req, res) {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Filter expired
     const now = new Date();
     const validTests = tests.filter(t => !t.expiryDate || new Date(t.expiryDate) > now);
 
@@ -519,13 +456,11 @@ export async function getGeneralTests(req, res) {
       }))
     );
   } catch (err) {
-    console.error('Get general tests error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/tests/history - Get all test submissions for a student
-export async function getStudentTestHistory(req, res) {
+export async function getStudentTestHistory(req, res, next) {
   try {
     const { id: userId } = req.user;
 
@@ -618,24 +553,21 @@ export async function getStudentTestHistory(req, res) {
       };
     });
 
-    const allHistory = [...history, ...codingHistory].sort((a, b) => 
+    const allHistory = [...history, ...codingHistory].sort((a, b) =>
       new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()
     );
 
     return res.json(allHistory);
   } catch (err) {
-    console.error('Get student test history error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// GET /api/tests/submission/:id - Get detailed analytics for a specific submission
-export async function getTestSubmissionAnalytics(req, res) {
+export async function getTestSubmissionAnalytics(req, res, next) {
   try {
     const { id: submissionId } = req.params;
     const { id: userId } = req.user;
 
-    // Get the result with answers
     const result = await prisma.result.findUnique({
       where: { id: submissionId },
       include: {
@@ -660,11 +592,11 @@ export async function getTestSubmissionAnalytics(req, res) {
     });
 
     if (!result) {
-      return res.status(404).json({ error: 'Submission not found' });
+      return sendError(res, 'Submission not found', 404);
     }
 
     if (result.userId !== userId) {
-      return res.status(403).json({ error: 'You can only view your own submissions' });
+      return sendError(res, 'You can only view your own submissions', 403);
     }
 
     const total = result.test.questions.length;
@@ -672,7 +604,6 @@ export async function getTestSubmissionAnalytics(req, res) {
     const wrong = total - correct;
     const accuracy = Math.round((correct / total) * 100);
 
-    // Build question breakdown
     const answerMap = Object.fromEntries(result.answers.map((a) => [a.questionId, a]));
     const questionBreakdown = result.test.questions.map((q) => {
       const answer = answerMap[q.id];
@@ -692,7 +623,6 @@ export async function getTestSubmissionAnalytics(req, res) {
       };
     });
 
-    // Group topics (simplified - could be enhanced with topic data)
     const weakTopics = [];
     const strongTopics = [];
 
@@ -715,59 +645,47 @@ export async function getTestSubmissionAnalytics(req, res) {
       questionBreakdown,
     });
   } catch (err) {
-    console.error('Get test submission analytics error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }
 
-// POST /api/test/submit
-export async function submitTest(req, res) {
+export async function submitTest(req, res, next) {
   try {
-    const { testId, answers } = req.body; // answers: [{ questionId, selectedOption }]
+    const { testId, answers } = req.body;
     const userId = req.user.id;
 
-    console.log('=== TEST SUBMISSION ===');
-    console.log('User ID:', userId);
-    console.log('Test ID:', testId);
-    console.log('Answers count:', answers?.length);
-
     if (!testId || !answers || !Array.isArray(answers)) {
-      return res.status(400).json({ error: 'testId and answers array are required' });
+      return sendError(res, 'testId and answers array are required', 400);
     }
 
-    // Fetch test to check expiry
     const test = await prisma.test.findUnique({
       where: { id: testId },
       select: { id: true, expiryDate: true },
     });
 
     if (!test) {
-      return res.status(404).json({ error: 'Test not found' });
+      return sendError(res, 'Test not found', 404);
     }
 
-    // Check if test is expired
     if (test.expiryDate && new Date() > new Date(test.expiryDate)) {
-      return res.status(403).json({ error: 'Test has expired', expired: true });
+      return sendError(res, 'Test has expired', 403);
     }
 
-    // Check duplicate submission
     const existing = await prisma.result.findUnique({
       where: { userId_testId: { userId, testId } },
     });
     if (existing) {
-      return res.status(409).json({ error: 'Test already submitted', result: existing });
+      return sendError(res, 'Test already submitted', 409);
     }
 
-    // Fetch questions with correct answers
     const questions = await prisma.question.findMany({
       where: { testId },
     });
 
     if (questions.length === 0) {
-      return res.status(404).json({ error: 'Test not found or has no questions' });
+      return sendError(res, 'Test not found or has no questions', 404);
     }
 
-    // Grade the answers
     const questionMap = Object.fromEntries(questions.map((q) => [q.id, q]));
     let score = 0;
     const correctAnswers = [];
@@ -805,7 +723,6 @@ export async function submitTest(req, res) {
     const totalMarks = questions.length;
     const percentage = Math.round((score / totalMarks) * 100);
 
-    // Save result + answers in a transaction
     const result = await prisma.$transaction(async (tx) => {
       const newResult = await tx.result.create({
         data: {
@@ -820,11 +737,8 @@ export async function submitTest(req, res) {
         },
         include: { answers: true },
       });
-      console.log('Result saved:', { resultId: newResult.id, score, totalMarks, percentage });
       return newResult;
     });
-
-    console.log('=== SUBMISSION COMPLETE ===');
 
     return res.status(201).json({
       success: true,
@@ -837,7 +751,6 @@ export async function submitTest(req, res) {
       wrongAnswers,
     });
   } catch (err) {
-    console.error('Submit test error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    next(err);
   }
 }

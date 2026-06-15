@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import logger from '../utils/logger.js';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.3-70b-versatile';
@@ -41,13 +42,13 @@ export const generateHint = async (question, code) => {
 
     if (!response.ok) {
       const errorMsg = data?.error?.message || data?.error?.type || response.statusText;
-      console.error('Groq API Error:', { status: response.status, error: data });
+      logger.error('Groq API Error', { status: response.status, error: data });
       return "AI service temporarily unavailable";
     }
 
     return data.choices?.[0]?.message?.content || "No hint available";
   } catch (error) {
-    console.error("Groq error:", error);
+      logger.error('Groq error', { error: error.message });
     return "AI service temporarily unavailable";
   }
 };
@@ -113,7 +114,7 @@ Return JSON array:`;
 
     if (!response.ok) {
       const errorMsg = data?.error?.message || data?.error?.type || response.statusText;
-      console.error('Groq API Error:', { status: response.status, error: data });
+      logger.error('Groq API Error', { status: response.status, error: data });
       throw new Error('AI service temporarily unavailable');
     }
 
@@ -166,11 +167,11 @@ Return JSON array:`;
         correctAnswer: q.correctAnswer.toUpperCase(),
       }));
     } catch (err) {
-      console.error('Failed to parse questions JSON:', cleanedContent);
+      logger.error('Failed to parse questions JSON', { content: cleanedContent });
       throw new Error('Failed to parse AI-generated questions as JSON');
     }
   } catch (error) {
-    console.error('Groq API error:', error);
+    logger.error('Groq API error', { error: error.message });
     throw new Error('AI service temporarily unavailable');
   }
 }
@@ -229,7 +230,7 @@ Return ONLY JSON:`;
 
     if (!response.ok) {
       const errorMsg = data?.error?.message || data?.error?.type || response.statusText;
-      console.error('Groq API Error:', { status: response.status, error: data });
+      logger.error('Groq API Error', { status: response.status, error: data });
       return {
         strengths: 'Keep practicing consistently.',
         weaknesses: weakTopics.length > 0 ? `Focus on: ${weakTopics.join(', ')}` : 'Keep building your knowledge base.',
@@ -261,7 +262,7 @@ Return ONLY JSON:`;
         suggestions: typeof feedback.suggestions === 'string' ? feedback.suggestions : 'Review incorrect answers and practice more questions.',
       };
     } catch (err) {
-      console.error('Failed to parse feedback JSON:', cleanedContent);
+      logger.error('Failed to parse feedback JSON', { content: cleanedContent });
       return {
         strengths: 'Keep practicing consistently.',
         weaknesses: weakTopics.length > 0 ? `Focus on: ${weakTopics.join(', ')}` : 'Keep building your knowledge base.',
@@ -269,7 +270,7 @@ Return ONLY JSON:`;
       };
     }
   } catch (error) {
-    console.error('Groq API error:', error);
+    logger.error('Groq API error', { error: error.message });
     return {
       strengths: 'Keep practicing consistently.',
       weaknesses: weakTopics.length > 0 ? `Focus on: ${weakTopics.join(', ')}` : 'Keep building your knowledge base.',
@@ -297,7 +298,7 @@ export async function analyzeCodeWithAI(promptText) {
 
     if (!response.ok) {
       const errorMsg = data?.error?.message || data?.error?.type || response.statusText;
-      console.error('Groq API Error:', { status: response.status, error: data });
+      logger.error('Groq API Error', { status: response.status, error: data });
       throw new Error('AI service temporarily unavailable');
     }
 
@@ -308,7 +309,7 @@ export async function analyzeCodeWithAI(promptText) {
 
     return content;
   } catch (error) {
-    console.error('Groq API error:', error);
+    logger.error('Groq API error', { error: error.message });
     throw new Error('AI service temporarily unavailable');
   }
 }
@@ -369,7 +370,7 @@ Return ONLY JSON:`;
 
     if (!response.ok) {
       const errorMsg = data?.error?.message || data?.error?.type || response.statusText;
-      console.error('Groq API Error:', { status: response.status, error: data });
+      logger.error('Groq API Error', { status: response.status, error: data });
       return {
         weakTopics: [],
         strongTopics: [],
@@ -403,7 +404,7 @@ Return ONLY JSON:`;
         overallScore: typeof analysis.overallScore === 'number' ? analysis.overallScore : 0,
       };
     } catch (err) {
-      console.error('Failed to parse analysis JSON:', cleanedContent);
+      logger.error('Failed to parse analysis JSON', { content: cleanedContent });
       return {
         weakTopics: [],
         strongTopics: [],
@@ -412,7 +413,7 @@ Return ONLY JSON:`;
       };
     }
   } catch (error) {
-    console.error('Groq API error:', error);
+    logger.error('Groq API error', { error: error.message });
     return {
       weakTopics: [],
       strongTopics: [],
@@ -487,7 +488,7 @@ Return JSON array:`;
 
     if (!response.ok) {
       const errorMsg = data?.error?.message || data?.error?.type || response.statusText;
-      console.error('Groq API Error:', { status: response.status, error: data });
+      logger.error('Groq API Error', { status: response.status, error: data });
       throw new Error('AI service temporarily unavailable');
     }
 
@@ -541,11 +542,11 @@ Return JSON array:`;
         topic: q.topic || 'General',
       }));
     } catch (err) {
-      console.error('Failed to parse questions JSON:', cleanedContent);
+      logger.error('Failed to parse questions JSON', { content: cleanedContent });
       throw new Error('Failed to parse AI-generated questions as JSON');
     }
   } catch (error) {
-    console.error('Groq API error:', error);
+    logger.error('Groq API error', { error: error.message });
     throw new Error('AI service temporarily unavailable');
   }
 }
@@ -608,7 +609,7 @@ Return ONLY JSON:`;
 
     if (!response.ok) {
       const errorMsg = data?.error?.message || data?.error?.type || response.statusText;
-      console.error('Groq API Error:', { status: response.status, error: data });
+      logger.error('Groq API Error', { status: response.status, error: data });
       throw new Error('AI service temporarily unavailable');
     }
 
@@ -650,11 +651,11 @@ Return ONLY JSON:`;
         })),
       };
     } catch (err) {
-      console.error('Failed to parse coding question JSON:', cleanedContent);
+      logger.error('Failed to parse coding question JSON', { content: cleanedContent });
       throw new Error('Failed to parse AI-generated coding question');
     }
   } catch (error) {
-    console.error('Groq API error:', error);
+    logger.error('Groq API error', { error: error.message });
     throw new Error('AI service temporarily unavailable');
   }
 }

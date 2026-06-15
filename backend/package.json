@@ -1,5 +1,5 @@
 {
-  "name": "backend",
+  "name": "skilllab-backend",
   "version": "1.0.0",
   "main": "src/index.js",
   "type": "module",
@@ -17,14 +17,18 @@
   "description": "SkillLab Backend - Node.js + Express + Prisma + PostgreSQL",
   "dependencies": {
     "@prisma/client": "^5.21.0",
-    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.0",
     "node-fetch": "^3.3.2",
-    "prisma": "^5.21.0"
+    "prisma": "^5.21.0",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

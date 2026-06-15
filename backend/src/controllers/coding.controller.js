@@ -3,8 +3,10 @@ import { runCode, submitCode, runSingleTest, validateLanguage } from '../service
 import { analyzeCode } from '../services/aiCoding.service.js';
 import { generateCodingQuestion, generateHint, analyzeCodeWithAI } from '../services/groq.service.js';
 import { randomUUID } from 'crypto';
+import logger from '../utils/logger.js';
+import { sendSuccess, sendError } from '../utils/response.js';
 
-export async function getBatches(req, res) {
+export async function getBatches(req, res, next) {
   try {
     const userId = req.user.id;
 
@@ -37,15 +39,13 @@ export async function getBatches(req, res) {
 
     return res.json(mappedBatches);
   } catch (error) {
-    console.error('Get coding batches error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getStudentCodingQuestions(req, res) {
+export async function getStudentCodingQuestions(req, res, next) {
   try {
     const userId = req.user.id;
-    console.log("Getting coding questions for user:", userId);
 
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
@@ -53,7 +53,6 @@ export async function getStudentCodingQuestions(req, res) {
     });
 
     const batchIds = batchStudents.map(b => b.batchId);
-    console.log("Student batchIds:", batchIds);
 
     if (batchIds.length === 0) {
       return res.json([]);
@@ -78,15 +77,13 @@ export async function getStudentCodingQuestions(req, res) {
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log("Questions found:", questions.length);
     return res.json(questions);
   } catch (error) {
-    console.error('Get student coding questions error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getQuestions(req, res) {
+export async function getQuestions(req, res, next) {
   try {
     const { type, batchId } = req.query;
     const userId = req.user.id;
@@ -137,12 +134,11 @@ export async function getQuestions(req, res) {
 
     return res.json(questions);
   } catch (error) {
-    console.error('Get questions error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getQuestionById(req, res) {
+export async function getQuestionById(req, res, next) {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -155,7 +151,7 @@ export async function getQuestionById(req, res) {
     });
 
     if (!question) {
-      return res.status(404).json({ error: 'Question not found' });
+      return sendError(res, 'Question not found', 404);
     }
 
     const isMember = await prisma.batchStudent.findFirst({
@@ -166,7 +162,7 @@ export async function getQuestionById(req, res) {
     });
 
     if (!isMember) {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
     const lastResult = await prisma.codingResult.findFirst({
@@ -182,12 +178,11 @@ export async function getQuestionById(req, res) {
       lastResult,
     });
   } catch (error) {
-    console.error('Get question error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getTests(req, res) {
+export async function getTests(req, res, next) {
   try {
     const { batchId } = req.query;
     const userId = req.user.id;
@@ -223,15 +218,13 @@ export async function getTests(req, res) {
 
     return res.json(tests);
   } catch (error) {
-    console.error('Get tests error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getStudentTests(req, res) {
+export async function getStudentTests(req, res, next) {
   try {
     const userId = req.user.id;
-    console.log("getStudentTests - User ID:", userId);
 
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
@@ -239,7 +232,6 @@ export async function getStudentTests(req, res) {
     });
 
     const batchIds = batchStudents.map(b => b.batchId);
-    console.log("getStudentTests - Student Batches:", batchIds);
 
     if (batchIds.length === 0) {
       return res.json([]);
@@ -269,15 +261,13 @@ export async function getStudentTests(req, res) {
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log("getStudentTests - Fetched Tests:", tests.length);
     return res.json(tests);
   } catch (error) {
-    console.error('Get student tests error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getTestById(req, res) {
+export async function getTestById(req, res, next) {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -306,7 +296,7 @@ export async function getTestById(req, res) {
     });
 
     if (!test) {
-      return res.status(404).json({ error: 'Test not found' });
+      return sendError(res, 'Test not found', 404);
     }
 
     const batchId = test.codingBatchId;
@@ -319,27 +309,26 @@ export async function getTestById(req, res) {
     });
 
     if (!isMember) {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
     return res.json(test);
   } catch (error) {
-    console.error('Get test error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function runCodeHandler(req, res) {
+export async function runCodeHandler(req, res, next) {
   try {
     const { code, language, questionId } = req.body;
     const userId = req.user.id;
 
     if (!code || !language) {
-      return res.status(400).json({ error: 'Code and language are required' });
+      return sendError(res, 'Code and language are required', 400);
     }
 
     if (!validateLanguage(language)) {
-      return res.status(400).json({ error: `Unsupported language: ${language}` });
+      return sendError(res, `Unsupported language: ${language}`, 400);
     }
 
     let sampleTestCases = [];
@@ -361,22 +350,21 @@ export async function runCodeHandler(req, res) {
       runType: 'sample',
     });
   } catch (error) {
-    console.error('Run code error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function submitCodeHandler(req, res) {
+export async function submitCodeHandler(req, res, next) {
   try {
     const { questionId, testId, code, language } = req.body;
     const userId = req.user.id;
 
     if (!code || !language || !questionId) {
-      return res.status(400).json({ error: 'Code, language, and questionId are required' });
+      return sendError(res, 'Code, language, and questionId are required', 400);
     }
 
     if (!validateLanguage(language)) {
-      return res.status(400).json({ error: `Unsupported language: ${language}` });
+      return sendError(res, `Unsupported language: ${language}`, 400);
     }
 
     const question = await prisma.codingQuestion.findUnique({
@@ -392,7 +380,7 @@ export async function submitCodeHandler(req, res) {
     });
 
     if (!question) {
-      return res.status(404).json({ error: 'Question not found' });
+      return sendError(res, 'Question not found', 404);
     }
 
     const testCases = (question.testCases || []).map(tc => ({
@@ -501,12 +489,12 @@ Return ONLY JSON:`;
         const cleaned = aiAnalysis.replace(/```json/g, '').replace(/```/g, '').trim();
         parsedAnalytics = JSON.parse(cleaned);
       } catch (parseErr) {
-        console.warn('Failed to parse AI analytics:', parseErr);
+        logger.warn('Failed to parse AI analytics', { error: parseErr.message });
       }
 
       analytics = parsedAnalytics;
     } catch (aiError) {
-      console.error('AI analytics error:', aiError);
+      logger.error('AI analytics error', { error: aiError.message });
       analytics = {
         timeComplexity: 'Analysis unavailable',
         spaceComplexity: 'Analysis unavailable',
@@ -529,12 +517,11 @@ Return ONLY JSON:`;
 
     return res.json(response);
   } catch (error) {
-    console.error('Submit code error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getAnalytics(req, res) {
+export async function getAnalytics(req, res, next) {
   try {
     const userId = req.user.id;
 
@@ -602,17 +589,16 @@ export async function getAnalytics(req, res) {
       topicStats: topicAccuracy,
     });
   } catch (error) {
-    console.error('Get analytics error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getAdminAnalytics(req, res) {
+export async function getAdminAnalytics(req, res, next) {
   try {
     const { batchId } = req.query;
 
     if (!batchId) {
-      return res.status(400).json({ error: 'batchId is required' });
+      return sendError(res, 'batchId is required', 400);
     }
 
     const batchStudents = await prisma.batchStudent.findMany({
@@ -712,51 +698,46 @@ export async function getAdminAnalytics(req, res) {
       topicBreakdown,
     });
   } catch (error) {
-    console.error('Get admin analytics error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function generateCodingQuestionHandler(req, res) {
+export async function generateCodingQuestionHandler(req, res, next) {
   try {
     const { topic, difficulty, language } = req.body;
 
     if (!topic || !difficulty || !language) {
-      return res.status(400).json({ error: 'Topic, difficulty, and language are required' });
+      return sendError(res, 'Topic, difficulty, and language are required', 400);
     }
 
     const validDifficulties = ['easy', 'medium', 'hard'];
     if (!validDifficulties.includes(difficulty.toLowerCase())) {
-      return res.status(400).json({ error: 'Invalid difficulty. Use easy, medium, or hard' });
+      return sendError(res, 'Invalid difficulty. Use easy, medium, or hard', 400);
     }
 
     const validLanguages = ['c', 'cpp', 'java', 'python'];
     if (!validLanguages.includes(language.toLowerCase())) {
-      return res.status(400).json({ error: 'Invalid language. Use c, cpp, java, or python' });
+      return sendError(res, 'Invalid language. Use c, cpp, java, or python', 400);
     }
 
     const generated = await generateCodingQuestion(topic, difficulty, language);
 
     return res.json(generated);
   } catch (error) {
-    console.error('Generate coding question error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function createCodingQuestionHandler(req, res) {
+export async function createCodingQuestionHandler(req, res, next) {
   try {
-    console.log("Creating coding question for batch:", req.body.batchId);
-    console.log("Incoming request:", req.body);
-
     const { batchId, type, topic, difficulty, title, description, starterCode, testCases, language } = req.body;
 
     if (!batchId) {
-      return res.status(400).json({ error: 'Batch ID is required' });
+      return sendError(res, 'Batch ID is required', 400);
     }
 
     if (!type || !topic || !difficulty || !title || !description) {
-      return res.status(400).json({ error: 'Type, topic, difficulty, title, and description are required' });
+      return sendError(res, 'Type, topic, difficulty, title, and description are required', 400);
     }
 
     const finalLanguage = language || "java";
@@ -780,8 +761,6 @@ export async function createCodingQuestionHandler(req, res) {
         { input: "", expectedOutput: "" }
       ];
     }
-
-    console.log("Parsed test cases:", parsedTestCases);
 
     const question = await prisma.codingQuestion.create({
       data: {
@@ -833,12 +812,11 @@ export async function createCodingQuestionHandler(req, res) {
 
     return res.status(201).json(question);
   } catch (error) {
-    console.error('Create coding question error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function updateCodingQuestionHandler(req, res) {
+export async function updateCodingQuestionHandler(req, res, next) {
   try {
     const { id } = req.params;
     const { type, topic, difficulty, title, description, starterCode, testCases } = req.body;
@@ -848,7 +826,7 @@ export async function updateCodingQuestionHandler(req, res) {
     });
 
     if (!existing) {
-      return res.status(404).json({ error: 'Question not found' });
+      return sendError(res, 'Question not found', 404);
     }
 
     const updateData = {};
@@ -859,7 +837,6 @@ export async function updateCodingQuestionHandler(req, res) {
     if (description !== undefined) updateData.description = description;
     if (starterCode !== undefined) updateData.starterCode = starterCode;
     if (testCases !== undefined) {
-      // Parse if string
       let parsedTestCases = testCases;
       if (typeof testCases === "string") {
         try {
@@ -869,7 +846,7 @@ export async function updateCodingQuestionHandler(req, res) {
         }
       }
       if (!Array.isArray(parsedTestCases) || parsedTestCases.length === 0) {
-        return res.status(400).json({ error: 'At least one test case is required' });
+        return sendError(res, 'At least one test case is required', 400);
       }
       updateData.testCases = parsedTestCases;
     }
@@ -881,12 +858,11 @@ export async function updateCodingQuestionHandler(req, res) {
 
     return res.json(question);
   } catch (error) {
-    console.error('Update coding question error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function deleteCodingQuestionHandler(req, res) {
+export async function deleteCodingQuestionHandler(req, res, next) {
   try {
     const { id } = req.params;
 
@@ -895,7 +871,7 @@ export async function deleteCodingQuestionHandler(req, res) {
     });
 
     if (!existing) {
-      return res.status(404).json({ error: 'Question not found' });
+      return sendError(res, 'Question not found', 404);
     }
 
     await prisma.codingQuestion.delete({
@@ -904,12 +880,11 @@ export async function deleteCodingQuestionHandler(req, res) {
 
     return res.json({ message: 'Question deleted successfully' });
   } catch (error) {
-    console.error('Delete coding question error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getAdminQuestionsHandler(req, res) {
+export async function getAdminQuestionsHandler(req, res, next) {
   try {
     const { batchId } = req.query;
 
@@ -934,12 +909,11 @@ export async function getAdminQuestionsHandler(req, res) {
       batchName: q.batch?.name,
     })));
   } catch (error) {
-    console.error('Get admin questions error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getSubmissionsHandler(req, res) {
+export async function getSubmissionsHandler(req, res, next) {
   try {
     const { questionId } = req.params;
     const userId = req.user.id;
@@ -964,17 +938,16 @@ export async function getSubmissionsHandler(req, res) {
 
     return res.json(submissions);
   } catch (error) {
-    console.error('Get submissions error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getHintHandler(req, res) {
+export async function getHintHandler(req, res, next) {
   try {
     const { questionId, description, title, code } = req.body;
 
     if (!process.env.GROQ_API_KEY) {
-      return res.status(500).json({ error: 'AI service not configured' });
+      return sendError(res, 'AI service not configured', 500);
     }
 
     const problemContext = `${title}\n${description}`;
@@ -985,17 +958,16 @@ export async function getHintHandler(req, res) {
       hint
     });
   } catch (error) {
-    console.error('Get hint error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function createCodingTestHandler(req, res) {
+export async function createCodingTestHandler(req, res, next) {
   try {
     const { batchId, title, duration, questionIds } = req.body;
 
     if (!batchId || !title) {
-      return res.status(400).json({ error: 'Batch and title are required' });
+      return sendError(res, 'Batch and title are required', 400);
     }
 
     const test = await prisma.codingTest.create({
@@ -1018,12 +990,11 @@ export async function createCodingTestHandler(req, res) {
 
     return res.status(201).json(test);
   } catch (error) {
-    console.error('Create coding test error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getAdminCodingTestsHandler(req, res) {
+export async function getAdminCodingTestsHandler(req, res, next) {
   try {
     const { batchId } = req.query;
 
@@ -1048,12 +1019,11 @@ export async function getAdminCodingTestsHandler(req, res) {
       batchName: t.batch?.name,
     })));
   } catch (error) {
-    console.error('Get admin coding tests error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function deleteCodingTestHandler(req, res) {
+export async function deleteCodingTestHandler(req, res, next) {
   try {
     const { id } = req.params;
 
@@ -1062,7 +1032,7 @@ export async function deleteCodingTestHandler(req, res) {
     });
 
     if (!existing) {
-      return res.status(404).json({ error: 'Test not found' });
+      return sendError(res, 'Test not found', 404);
     }
 
     await prisma.codingTest.delete({
@@ -1071,18 +1041,17 @@ export async function deleteCodingTestHandler(req, res) {
 
     return res.json({ message: 'Test deleted successfully' });
   } catch (error) {
-    console.error('Delete coding test error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getCodingHistory(req, res) {
+export async function getCodingHistory(req, res, next) {
   try {
     const userId = req.user.id;
     const { batchId } = req.query;
 
     if (!batchId) {
-      return res.status(400).json({ error: 'batchId is required' });
+      return sendError(res, 'batchId is required', 400);
     }
 
     const isMember = await prisma.batchStudent.findFirst({
@@ -1090,7 +1059,7 @@ export async function getCodingHistory(req, res) {
     });
 
     if (!isMember) {
-      return res.status(403).json({ error: 'Access denied to this batch' });
+      return sendError(res, 'Access denied to this batch', 403);
     }
 
     const submissions = await prisma.codingResult.findMany({
@@ -1136,12 +1105,11 @@ export async function getCodingHistory(req, res) {
 
     return res.json(history);
   } catch (error) {
-    console.error('Get coding history error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getCodingResultById(req, res) {
+export async function getCodingResultById(req, res, next) {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -1164,11 +1132,11 @@ export async function getCodingResultById(req, res) {
     });
 
     if (!result) {
-      return res.status(404).json({ error: 'Result not found' });
+      return sendError(res, 'Result not found', 404);
     }
 
     if (result.userId !== userId) {
-      return res.status(403).json({ error: 'Access denied' });
+      return sendError(res, 'Access denied', 403);
     }
 
     return res.json({
@@ -1186,18 +1154,17 @@ export async function getCodingResultById(req, res) {
       question: result.question,
     });
   } catch (error) {
-    console.error('Get coding result error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getStudentCodingAnalytics(req, res) {
+export async function getStudentCodingAnalytics(req, res, next) {
   try {
     const userId = req.user.id;
     const { batchId } = req.query;
 
     if (!batchId) {
-      return res.status(400).json({ error: 'batchId is required' });
+      return sendError(res, 'batchId is required', 400);
     }
 
     const isMember = await prisma.batchStudent.findFirst({
@@ -1205,7 +1172,7 @@ export async function getStudentCodingAnalytics(req, res) {
     });
 
     if (!isMember) {
-      return res.status(403).json({ error: 'Access denied to this batch' });
+      return sendError(res, 'Access denied to this batch', 403);
     }
 
     const results = await prisma.codingResult.findMany({
@@ -1331,12 +1298,11 @@ export async function getStudentCodingAnalytics(req, res) {
       recentSubmissions,
     });
   } catch (error) {
-    console.error('Get student coding analytics error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getCodingTestAnalytics(req, res) {
+export async function getCodingTestAnalytics(req, res, next) {
   try {
     const { testId } = req.params;
 
@@ -1364,7 +1330,7 @@ export async function getCodingTestAnalytics(req, res) {
     });
 
     if (!test) {
-      return res.status(404).json({ error: 'Test not found' });
+      return sendError(res, 'Test not found', 404);
     }
 
     const batchId = test.codingBatchId;
@@ -1510,12 +1476,11 @@ export async function getCodingTestAnalytics(req, res) {
       scoreDistribution,
     });
   } catch (error) {
-    console.error('Get coding test analytics error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }
 
-export async function getCodingInsights(req, res) {
+export async function getCodingInsights(req, res, next) {
   try {
     const userId = req.user.id;
     const { batchId } = req.params;
@@ -1525,7 +1490,7 @@ export async function getCodingInsights(req, res) {
     });
 
     if (!isMember) {
-      return res.status(403).json({ error: 'Access denied to this batch' });
+      return sendError(res, 'Access denied to this batch', 403);
     }
 
     const results = await prisma.codingResult.findMany({
@@ -1615,7 +1580,6 @@ export async function getCodingInsights(req, res) {
       totalAttempts: results.length,
     });
   } catch (error) {
-    console.error('Get coding insights error:', error);
-    return res.status(500).json({ error: error.message });
+    next(error);
   }
 }

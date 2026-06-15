@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { SplashScreen } from '@/components/SplashScreen';
 
 import Login from './pages/Login';
@@ -86,6 +87,7 @@ const App = () => (
       <AuthProvider>
         <BrowserRouter>
           <SplashGate>
+            <ErrorBoundary>
             <Routes>
               <Route path='/' element={<Navigate to='/login' replace />} />
               <Route path='/login' element={<Login />} />
@@ -133,6 +135,7 @@ const App = () => (
 
               <Route path='*' element={<NotFound />} />
             </Routes>
+            </ErrorBoundary>
           </SplashGate>
         </BrowserRouter>
       </AuthProvider>

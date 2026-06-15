@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js';
 import { analyzeCodeWithAI } from './groq.service.js';
 
 export async function analyzeCode(code, language, problemDescription) {
@@ -28,7 +29,7 @@ Return a JSON object with:
         return JSON.parse(jsonMatch[0]);
       }
     } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
+      logger.error('Failed to parse AI response', { error: parseError.message });
     }
     
     return {
@@ -40,7 +41,7 @@ Return a JSON object with:
       rawFeedback: result,
     };
   } catch (error) {
-    console.error('AI code analysis error:', error);
+    logger.error('AI code analysis error', { error: error.message });
     return {
       timeComplexity: 'Error',
       spaceComplexity: 'Error',
