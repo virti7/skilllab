@@ -35,8 +35,14 @@ app.use(helmet({
   contentSecurityPolicy: false,
 }));
 
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+  : process.env.FRONTEND_URL
+    ? [process.env.FRONTEND_URL]
+    : ['http://localhost:5173'];
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN?.split(',').map(s => s.trim()) || 'http://localhost:5173',
+  origin: corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -55,9 +61,24 @@ if (process.env.NODE_ENV !== 'test') {
 // Rate limiting
 app.use('/api', generalLimiter);
 
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'SkillLab API is running successfully',
+    status: 'healthy',
+    environment: process.env.NODE_ENV,
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), uptime: process.uptime() });
+  res.status(200).json({
+    success: true,
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.get('/api/health', async (req, res) => {
@@ -69,7 +90,13 @@ app.get('/api/health', async (req, res) => {
   } catch {
     dbStatus.status = 'disconnected';
   }
-  res.json({ status: 'ok', db: dbStatus, timestamp: new Date().toISOString(), uptime: process.uptime() });
+  res.status(200).json({
+    success: true,
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    db: dbStatus,
+  });
 });
 
 // API Routes
@@ -87,9 +114,12 @@ app.use('/api/coding', codingRoutes);
 app.use('/api/compiler', compilerRoutes);
 app.use('/api/practice-sheets', practiceSheetsRoutes);
 
-// 404 handler
+// 404 handler - must be after all routes
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: `Route ${req.method} ${req.path} not found` });
+  res.status(404).json({
+    success: false,
+    message: `Route ${req.method} ${req.originalUrl} not found`,
+  });
 });
 
 // Global error handler
