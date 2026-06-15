@@ -8,7 +8,7 @@ import cookieParser from 'cookie-parser';
 
 import { errorHandler, generalLimiter } from './middleware/index.js';
 import logger from './utils/logger.js';
-import { prisma } from './utils/prisma.js';
+import { prisma, connectDatabase, disconnectDatabase } from './utils/prisma.js';
 
 import authRoutes from './routes/auth.routes.js';
 import batchRoutes from './routes/batch.routes.js';
@@ -79,17 +79,50 @@ if (missing.length > 0) {
   logger.error(`Missing required environment variables: ${missing.join(', ')}`);
   process.exit(1);
 }
+
+const envDiagnostics = {
+  PORT: process.env.PORT,
+  NODE_ENV: process.env.NODE_ENV,
+  CORS_ORIGIN: process.env.CORS_ORIGIN,
+  JWT_SECRET: process.env.JWT_SECRET ? `${process.env.JWT_SECRET.slice(0, 8)}...` : 'MISSING',
+  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET ? `${process.env.JWT_REFRESH_SECRET.slice(0, 8)}...` : 'MISSING',
+  DATABASE_URL: process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/\/\/.*@/, '//***:***@') : 'MISSING',
+  FRONTEND_URL: process.env.FRONTEND_URL,
+  GROQ_API_KEY: process.env.GROQ_API_KEY ? 'present' : 'MISSING',
+};
+
+logger.info('Environment variables loaded', envDiagnostics);
+
+// Check for quoted DATABASE_URL
+const dbUrl = process.env.DATABASE_URL;
+if (dbUrl) {
+  if ((dbUrl.startsWith('"') || dbUrl.startsWith("'")) && (dbUrl.endsWith('"') || dbUrl.endsWith("'"))) {
+    logger.error('DATABASE_URL contains quote/apostrophe characters — Prisma will fail to connect. Remove quotes in Render environment variable.');
+  }
+}
+
 if (process.env.JWT_SECRET === 'your-super-secret-jwt-key-change-in-production' || process.env.JWT_SECRET?.length < 16) {
   logger.warn('JWT_SECRET is weak or still set to default value');
 }
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  let dbConnected = false;
+  let dbError = null;
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbConnected = true;
+  } catch (err) {
+    dbError = err.message;
+  }
   res.status(200).json({
     success: true,
-    status: 'healthy',
+    status: dbConnected ? 'healthy' : 'degraded',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    database: dbConnected ? 'connected' : 'disconnected',
+    databaseError: dbError,
   });
 });
 
@@ -101,12 +134,14 @@ app.get('/api/health', async (req, res) => {
   } catch (err) {
     dbStatus.status = 'disconnected';
     dbStatus.error = err.message;
+    dbStatus.code = err.code;
   }
   res.status(200).json({
     success: true,
     status: 'healthy',
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
     db: dbStatus,
   });
 });
@@ -137,8 +172,39 @@ app.use((req, res) => {
 // Global error handler
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  logger.info(`SkillLab backend running on http://localhost:${PORT}`, { environment: process.env.NODE_ENV });
+async function startServer() {
+  const dbConnected = await connectDatabase();
+  if (dbConnected) {
+    logger.info('Startup complete — database connection verified');
+  } else {
+    logger.error('Startup complete — database connection FAILED. Requests will return errors until database is reachable.');
+  }
+
+  app.listen(PORT, () => {
+    logger.info(`SkillLab backend running on http://localhost:${PORT}`, {
+      environment: process.env.NODE_ENV,
+      database: dbConnected ? 'connected' : 'disconnected',
+      port: PORT,
+    });
+  });
+}
+
+startServer().catch((err) => {
+  logger.error('Failed to start server', { message: err.message, stack: err.stack });
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received — shutting down gracefully');
+  await disconnectDatabase();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received — shutting down gracefully');
+  await disconnectDatabase();
+  process.exit(0);
 });
 
 export default app;

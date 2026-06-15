@@ -40,10 +40,18 @@ export function errorHandler(err, req, res, _next) {
 
   const statusCode = err.statusCode || 500;
   let message = err.message || 'Internal server error';
-  if (process.env.NODE_ENV === 'production') {
-    if (statusCode === 500) message = 'Internal server error';
-    if (statusCode >= 500) logger.error('Server error', { message: err.message, stack: err.stack });
+
+  // Always expose DB connection errors so Render logs show the real issue
+  const isDbError = err.message && (err.message.includes('connect ECONNREFUSED') || err.message.includes('getaddrinfo') || err.message.includes('Authentication') || err.message.includes('does not exist') || err.message.includes('prisma'));
+  if (process.env.NODE_ENV === 'production' && statusCode === 500) {
+    if (isDbError) {
+      message = `Database error: ${err.message}`;
+      logger.error('Database connection error surfaced', { message: err.message });
+    } else {
+      message = 'Internal server error';
+    }
   }
+  if (statusCode >= 500) logger.error('Server error', { message: err.message, stack: err.stack });
 
   return sendError(res, message, statusCode);
 }
