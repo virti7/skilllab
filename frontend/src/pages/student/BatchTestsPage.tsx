@@ -78,7 +78,7 @@ export default function BatchTestsPage() {
 
   return (
     <AppLayout>
-      <div className="mb-6">
+      <div className="mb-4 md:mb-6 px-4 md:px-0">
         <button
           onClick={() => navigate('/student/tests')}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
@@ -91,7 +91,7 @@ export default function BatchTestsPage() {
             <BookOpen className="w-7 h-7 text-primary" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-foreground">
+            <h2 className="text-xl md:text-2xl font-bold text-foreground">
               {batch?.name || 'Batch'}
             </h2>
             <div className="flex items-center gap-3 mt-1">
@@ -167,7 +167,7 @@ export default function BatchTestsPage() {
         <>
           {(filter === 'all' || filter === 'upcoming') && upcomingTests.length > 0 && (
             <>
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <Clock className="w-5 h-5 text-amber-500" />
                 Upcoming Tests ({upcomingTests.length})
               </h3>
@@ -211,7 +211,7 @@ export default function BatchTestsPage() {
 
           {(filter === 'all' || filter === 'completed') && completedTests.length > 0 && (
             <>
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                 Completed Tests ({completedTests.length})
               </h3>

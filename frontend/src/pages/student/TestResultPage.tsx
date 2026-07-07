@@ -79,7 +79,7 @@ export default function TestResultPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-card border-b border-border px-8 py-4 flex items-center justify-between">
+      <div className="bg-card border-b border-border px-4 md:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate("/student")}
@@ -88,7 +88,7 @@ export default function TestResultPage() {
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
           </button>
           <div>
-            <h1 className="font-bold text-foreground">Test Results</h1>
+            <h1 className="text-lg md:text-xl font-bold text-foreground">Test Results</h1>
             <p className="text-sm text-muted-foreground">
               Completed on {new Date(result.submittedAt).toLocaleDateString()}
             </p>
@@ -96,7 +96,7 @@ export default function TestResultPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto p-8">
+      <div className="max-w-6xl mx-auto p-4 md:p-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="md:col-span-2">
             <CardHeader className="pb-2">

@@ -112,7 +112,7 @@ export default function Batches() {
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-foreground">Batches</h2>
+        <h2 className="text-lg md:text-xl font-bold text-foreground">Batches</h2>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90"

@@ -105,7 +105,7 @@ export default function BatchCodingPage() {
             <Code2 className='w-8 h-8 text-white' />
           </div>
           <div>
-            <h1 className='text-3xl font-bold text-foreground'>{batch?.name || 'Batch'}</h1>
+            <h1 className='text-2xl md:text-3xl font-bold text-foreground'>{batch?.name || 'Batch'}</h1>
             <div className='flex items-center gap-4 mt-2'>
               <div className='flex items-center gap-1.5 text-sm text-muted-foreground'>
                 <Target className='w-4 h-4 text-primary' />
@@ -156,12 +156,12 @@ export default function BatchCodingPage() {
 
         <TabsContent value="practice" className="space-y-4">
           {practiceList.length > 0 ? (
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5'>
               {practiceList.map((q, index) => (
                 <button
                   key={q.id}
                   onClick={() => handleQuestionClick(q.id)}
-                  className='group relative overflow-hidden p-5 rounded-2xl border bg-card text-left transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1'
+                  className='group relative overflow-hidden p-4 md:p-5 rounded-2xl border bg-card text-left transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1'
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className='absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity' />
@@ -210,12 +210,12 @@ export default function BatchCodingPage() {
 
         <TabsContent value="debug" className="space-y-4">
           {debugList.length > 0 ? (
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5'>
               {debugList.map((q, index) => (
                 <button
                   key={q.id}
                   onClick={() => handleQuestionClick(q.id)}
-                  className='group relative overflow-hidden p-5 rounded-2xl border bg-card text-left transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1'
+                  className='group relative overflow-hidden p-4 md:p-5 rounded-2xl border bg-card text-left transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1'
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className='absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity' />
@@ -264,11 +264,11 @@ export default function BatchCodingPage() {
 
         <TabsContent value="test" className="space-y-4">
           {testList.length > 0 ? (
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-5'>
+            <div className='grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5'>
               {testList.map((t, index) => (
                 <div
                   key={t.id}
-                  className='group relative overflow-hidden p-6 rounded-2xl border bg-card transition-all duration-300 hover:shadow-xl hover:shadow-violet-500/10 hover:-translate-y-1'
+                  className='group relative overflow-hidden p-4 md:p-6 rounded-2xl border bg-card transition-all duration-300 hover:shadow-xl hover:shadow-violet-500/10 hover:-translate-y-1'
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
                   <div className='absolute inset-0 bg-gradient-to-br from-violet-500/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity' />

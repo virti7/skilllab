@@ -201,7 +201,7 @@ export default function AdminTests() {
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-foreground">Tests</h2>
+        <h2 className="text-lg md:text-xl font-bold text-foreground mb-4 md:mb-6">Tests</h2>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90"
@@ -212,7 +212,7 @@ export default function AdminTests() {
 
       {/* Create Test Form */}
       {showForm && (
-        <div className="bg-card rounded-2xl border border-border p-6 mb-6 shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-4 md:p-6 mb-4 md:mb-6 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <h3 className="font-semibold text-foreground">Create New Test</h3>
             <button
@@ -443,7 +443,7 @@ export default function AdminTests() {
       {/* Test Analytics Modal */}
       {showAnalytics && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-xl">
+          <div className="bg-card rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-xl mx-2 md:mx-0">
             <div className="p-6 border-b border-border flex items-center justify-between">
               <h3 className="font-semibold text-lg">Test Analytics</h3>
               <button
@@ -589,7 +589,7 @@ export default function AdminTests() {
           <p className="text-sm">No tests yet. Create your first test!</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2 md:space-y-3">
           {tests.map((test) => (
             <div
               key={test.id}

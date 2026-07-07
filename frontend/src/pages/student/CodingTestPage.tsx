@@ -342,7 +342,7 @@ export default function CodingTestPage() {
           {tabWarning}
         </div>
       )}
-      <header className='h-14 border-b border-border bg-card flex items-center justify-between px-4 shrink-0'>
+      <header className='h-auto min-h-14 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0 flex-wrap gap-2 py-2'>
         <div className='flex items-center gap-3'>
           <button
             onClick={() => navigate('/student/coding')}
@@ -390,8 +390,8 @@ export default function CodingTestPage() {
         })}
       </div>
 
-      <div className='flex-1 flex overflow-hidden' ref={containerRef}>
-        <div className='w-[40%] min-w-[300px] max-w-[500px] border-r border-border flex flex-col bg-card'>
+      <div className='flex-1 flex flex-col lg:flex-row overflow-hidden' ref={containerRef}>
+        <div className='w-full lg:w-[40%] lg:min-w-[300px] lg:max-w-[500px] border-r lg:border-r-0 border-b lg:border-b-0 border-border flex flex-col bg-card'>
           <div className='p-4 border-b border-border'>
             <div className='flex items-center gap-2 mb-2'>
               <Badge variant='outline' className={
@@ -427,7 +427,7 @@ export default function CodingTestPage() {
         </div>
 
         <div
-          className="w-1 hover:w-1.5 bg-border hover:bg-primary cursor-col-resize transition-colors flex-shrink-0"
+          className="hidden lg:block w-1 hover:w-1.5 bg-border hover:bg-primary cursor-col-resize transition-colors flex-shrink-0"
           onMouseDown={startResizing}
         />
 
@@ -470,7 +470,7 @@ export default function CodingTestPage() {
             />
           </div>
 
-          <div className='h-[180px] border-t border-border bg-card flex flex-col p-3'>
+          <div className='h-[150px] md:h-[180px] border-t border-border bg-card flex flex-col p-3'>
             <div className='flex items-center gap-2 mb-2'>
               <Button
                 onClick={handleRun}

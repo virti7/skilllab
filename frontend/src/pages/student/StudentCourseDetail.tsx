@@ -49,12 +49,12 @@ export default function StudentCourseDetail() {
   return (
     <AppLayout>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4 md:mb-6 px-4 md:px-0">
         <button onClick={() => navigate(-1)} className="p-2 rounded-xl hover:bg-secondary">
           <ArrowLeft className="w-5 h-5 text-muted-foreground" />
         </button>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="text-lg md:text-xl font-bold text-foreground flex items-center gap-2">
             <span className="text-2xl">{course.icon}</span> {course.name}
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -71,7 +71,7 @@ export default function StudentCourseDetail() {
       </div>
 
       {/* Category tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-4 md:mb-6">
         {(Object.keys(categoryLabels) as Category[]).map((cat) => {
           const count = tests.filter((t) => t.category === cat).length;
           return (

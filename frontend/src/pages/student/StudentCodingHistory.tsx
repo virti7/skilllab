@@ -81,7 +81,7 @@ export default function StudentCodingHistory() {
         </Link>
         <div className="flex items-center gap-2 mb-1">
           <Code2 className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">Coding History</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Coding History</h1>
         </div>
         <p className="text-muted-foreground">View all your coding submissions</p>
       </div>
@@ -111,8 +111,8 @@ export default function StudentCodingHistory() {
           </Link>
         </div>
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-card rounded-xl border border-border overflow-x-auto">
+          <div className="min-w-[600px]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">

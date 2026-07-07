@@ -102,7 +102,7 @@ export default function TestHistoryPage() {
 
   return (
     <AppLayout>
-      <div className="mb-6">
+      <div className="mb-4 md:mb-6 px-4 md:px-0">
         <button
           onClick={() => navigate('/student/tests')}
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -110,7 +110,7 @@ export default function TestHistoryPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to My Courses
         </button>
-        <h2 className="text-xl font-bold text-foreground">Test History</h2>
+        <h2 className="text-lg md:text-xl font-bold text-foreground">Test History</h2>
         <p className="text-sm text-muted-foreground mt-1">
           View all your test attempts and performance analytics
         </p>
@@ -132,7 +132,7 @@ export default function TestHistoryPage() {
       ) : (
         <>
           {/* Stats Overview */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
             <div className="bg-card rounded-2xl p-4 border border-border">
               <span className="text-xs text-muted-foreground">Total Attempts</span>
               <p className="text-2xl font-bold text-foreground">{totalTests}</p>

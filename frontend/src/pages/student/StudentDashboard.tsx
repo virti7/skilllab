@@ -215,7 +215,7 @@ export default function StudentDashboard() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="space-y-6"
+          className="space-y-4 md:space-y-6"
         >
           <div className="animate-pulse space-y-3">
             <div className="h-4 bg-muted rounded w-32" />
@@ -289,12 +289,12 @@ export default function StudentDashboard() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="space-y-6"
+        className="space-y-4 md:space-y-6"
       >
         {/* Welcome Banner */}
         <motion.div
           variants={itemVariants}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 p-6 lg:p-8"
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 p-4 md:p-6 lg:p-8"
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full blur-2xl" />
@@ -304,7 +304,7 @@ export default function StudentDashboard() {
                 <span>{getGreeting()},</span>
                 <Sparkles className="w-4 h-4 text-yellow-300" />
               </div>
-              <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-white tracking-tight">
                 Welcome back, {firstName}
               </h1>
               <p className="text-white/70 text-sm max-w-lg">
@@ -804,6 +804,7 @@ export default function StudentDashboard() {
             </div>
           ) : (
             <div className="overflow-x-auto">
+              <div className="min-w-[500px]">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-secondary/30">
@@ -897,6 +898,7 @@ export default function StudentDashboard() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           )}
         </motion.div>

@@ -90,7 +90,7 @@ export default function SuperAdminDashboard() {
             <Sparkles className="w-4 h-4 text-primary" />
             <span>Platform Overview</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
             Super Admin Dashboard
           </h1>
           <p className="text-sm text-muted-foreground mt-1">

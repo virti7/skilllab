@@ -167,7 +167,7 @@ export default function StudentCodingAnalytics() {
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <Code2 className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">
             {submission ? "Submission Analytics" : "Coding Analytics"}
           </h1>
         </div>
@@ -415,8 +415,8 @@ export default function StudentCodingAnalytics() {
                 </div>
               )}
 
-              <div className="bg-card rounded-xl border border-border overflow-hidden">
-                <div className="p-5 border-b border-border flex items-center justify-between">
+              <div className="bg-card rounded-xl border border-border overflow-x-auto">
+                <div className="p-5 border-b border-border flex items-center justify-between min-w-[600px]">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <History className="w-4 h-4 text-primary" />
                     Recent Submissions
@@ -433,7 +433,7 @@ export default function StudentCodingAnalytics() {
                     <p>No submissions yet</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="min-w-[600px]">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-border bg-secondary/30">

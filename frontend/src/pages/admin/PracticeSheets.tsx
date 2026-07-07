@@ -386,7 +386,7 @@ export default function PracticeSheets() {
     return (
         <AppLayout>
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-foreground">Practice Sheet Generator</h2>
+                <h2 className="text-lg md:text-xl font-bold text-foreground">Practice Sheet Generator</h2>
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -725,7 +725,7 @@ export default function PracticeSheets() {
                                 </p>
                             )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                             <button
                                 onClick={handleGeneratePreview}
                                 disabled={generating}
@@ -776,10 +776,10 @@ export default function PracticeSheets() {
                                         <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">
                                             {sheetData.instituteName}
                                         </p>
-                                        <h1 className="text-2xl font-bold text-gray-900 mb-3">
+                                        <h1 className="text-xl md:text-2xl font-bold text-gray-900 mb-3">
                                             {sheetData.sheetTitle}
                                         </h1>
-                                        <div className="flex justify-center gap-6 text-xs text-gray-600">
+                                        <div className="flex justify-center gap-3 md:gap-6 text-xs text-gray-600 flex-wrap">
                                             <span>Time Allowed: <strong>{config.timeAllowed}</strong></span>
                                             <span>Total Marks: <strong>{sheetData.totalMarks}</strong></span>
                                             <span>Date: <strong>{today}</strong></span>

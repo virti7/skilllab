@@ -63,7 +63,7 @@ export default function Leaderboard() {
       <div className="flex items-center justify-between gap-3 mb-8">
         <div className="flex items-center gap-3">
           <Trophy className="w-6 h-6 text-primary" />
-          <h2 className="text-xl font-bold text-foreground">Leaderboard</h2>
+          <h2 className="text-lg md:text-xl font-bold text-foreground">Leaderboard</h2>
           {usingDummy && (
             <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-lg">
               demo data

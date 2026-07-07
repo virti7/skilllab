@@ -4,9 +4,9 @@ import { allUsers } from "@/data/dummy";
 export default function AllUsers() {
   return (
     <AppLayout>
-      <h2 className="text-xl font-bold text-foreground mb-6">All Users</h2>
-      <div className="bg-card rounded-2xl border border-border overflow-hidden">
-        <table className="w-full text-sm">
+      <h2 className="text-lg md:text-xl font-bold text-foreground mb-4 md:mb-6">All Users</h2>
+      <div className="bg-card rounded-2xl border border-border overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-border bg-secondary/50">
               <th className="text-left px-5 py-3 font-medium text-muted-foreground">Name</th>

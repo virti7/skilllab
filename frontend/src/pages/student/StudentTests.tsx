@@ -49,7 +49,7 @@ export default function StudentTests() {
 
   return (
     <AppLayout>
-      <h2 className="text-xl font-bold text-foreground mb-6">My Courses</h2>
+      <h2 className="text-lg md:text-xl font-bold text-foreground mb-4 md:mb-6">My Courses</h2>
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
@@ -59,7 +59,7 @@ export default function StudentTests() {
         <>
           {batches.length > 0 && (
             <>
-              <h3 className="text-lg font-semibold text-foreground mb-4">My Batches</h3>
+              <h3 className="text-base md:text-lg font-semibold text-foreground mb-3 md:mb-4">My Batches</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                 {batches.map((batch) => {
                   const progress = batch.totalTests > 0 ? Math.round((batch.completedTests / batch.totalTests) * 100) : 0;

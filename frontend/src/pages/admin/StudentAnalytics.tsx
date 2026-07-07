@@ -77,7 +77,7 @@ export default function StudentAnalytics() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="bg-card rounded-2xl p-6 border border-border">
+        <div className="bg-card rounded-2xl p-4 md:p-6 border border-border">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary">
               {data.name
@@ -95,7 +95,7 @@ export default function StudentAnalytics() {
           <p className="text-sm text-muted-foreground">Batch: {data.batch}</p>
         </div>
 
-        <div className="bg-card rounded-2xl p-6 border border-border">
+        <div className="bg-card rounded-2xl p-4 md:p-6 border border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-warning/10 flex items-center justify-center">
               <Trophy className="w-5 h-5 text-warning" />
@@ -107,7 +107,7 @@ export default function StudentAnalytics() {
           </div>
         </div>
 
-        <div className="bg-card rounded-2xl p-6 border border-border">
+        <div className="bg-card rounded-2xl p-4 md:p-6 border border-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center">
               <Target className="w-5 h-5 text-success" />
@@ -120,7 +120,7 @@ export default function StudentAnalytics() {
         </div>
       </div>
 
-      <div className="bg-card rounded-2xl p-6 border border-border mb-6">
+      <div className="bg-card rounded-2xl p-4 md:p-6 border border-border mb-6">
         <h3 className="font-semibold text-foreground mb-4">Performance Trend</h3>
         {data.performanceTrend.length > 0 ? (
           <ResponsiveContainer width="100%" height={220}>
@@ -153,7 +153,7 @@ export default function StudentAnalytics() {
         )}
       </div>
 
-      <div className="bg-card rounded-2xl p-6 border border-border">
+      <div className="bg-card rounded-2xl p-4 md:p-6 border border-border">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-semibold text-foreground">Topic Breakdown</h3>
           {data.weakTopics.length > 0 && (

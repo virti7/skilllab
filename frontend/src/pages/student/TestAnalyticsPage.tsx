@@ -63,7 +63,7 @@ export default function TestAnalyticsPage() {
   if (error || !data) {
     return (
       <AppLayout>
-        <div className="mb-6">
+      <div className="mb-4 md:mb-6">
           <button
             onClick={() => navigate('/student/test-history')}
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
@@ -89,14 +89,14 @@ export default function TestAnalyticsPage() {
           <ArrowLeft className="w-4 h-4" />
           Back to Test History
         </button>
-        <h2 className="text-xl font-bold text-foreground">{data.testTitle}</h2>
+        <h2 className="text-lg md:text-xl font-bold text-foreground">{data.testTitle}</h2>
         <p className="text-sm text-muted-foreground mt-1">
           {data.batchName} · Submitted {new Date(data.submittedAt).toLocaleDateString()}
         </p>
       </div>
 
       {/* Main Score Card */}
-      <div className={`bg-card rounded-2xl p-6 border border-border mb-6`}>
+      <div className={`bg-card rounded-2xl p-4 md:p-6 border border-border mb-4 md:mb-6`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className={`w-20 h-20 rounded-2xl ${getScoreBg(data.percentage)}/10 flex items-center justify-center`}>
@@ -149,7 +149,7 @@ export default function TestAnalyticsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-4 md:mb-6">
         <button
           onClick={() => setActiveTab('overview')}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -173,7 +173,7 @@ export default function TestAnalyticsPage() {
       </div>
 
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           {/* Performance Summary */}
           <div className="bg-card rounded-2xl p-5 border border-border">
             <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">

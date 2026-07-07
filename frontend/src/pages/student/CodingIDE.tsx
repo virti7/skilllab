@@ -369,7 +369,7 @@ async function loadQuestion() {
 
   return (
     <div className={`min-h-screen bg-background flex flex-col h-screen ${isFullScreen ? 'fixed inset-0 z-50' : ''}`}>
-      <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4 shrink-0">
+      <header className="h-auto min-h-14 border-b border-border bg-card flex items-center justify-between px-2 md:px-4 shrink-0 flex-wrap gap-2 py-2">
         <div className="flex items-center gap-3">
           <button
             onClick={() => isFullScreen ? setIsFullScreen(false) : navigate("/student/coding")}
@@ -421,10 +421,10 @@ async function loadQuestion() {
         </div>
       </header>
 
-      <div className={`flex-1 flex overflow-hidden ${isFullScreen ? 'bg-background' : ''}`} ref={containerRef}>
+      <div className={`flex-1 flex flex-col lg:flex-row overflow-hidden ${isFullScreen ? 'bg-background' : ''}`} ref={containerRef}>
         {!isFullScreen && (
           <>
-            <div className="w-[40%] min-w-[300px] max-w-[500px] border-r border-border flex flex-col bg-card" style={{ width: editorWidth ? undefined : undefined }}>
+            <div className="w-full lg:w-[40%] lg:min-w-[300px] lg:max-w-[500px] border-r lg:border-r-0 border-b lg:border-b-0 border-border flex flex-col bg-card" style={{ width: editorWidth ? undefined : undefined }}>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
             <TabsList className="w-full justify-start rounded-none border-b bg-transparent px-2 h-10">
               <TabsTrigger value="description" className="text-xs px-2 h-8">Description</TabsTrigger>
@@ -572,7 +572,7 @@ async function loadQuestion() {
 
         {!isFullScreen && (
           <div
-            className="w-1 hover:w-1.5 bg-border hover:bg-primary cursor-col-resize transition-colors flex-shrink-0"
+            className="hidden lg:block w-1 hover:w-1.5 bg-border hover:bg-primary cursor-col-resize transition-colors flex-shrink-0"
             onMouseDown={startResizing}
           />
         )}
@@ -598,7 +598,7 @@ async function loadQuestion() {
             />
           </div>
 
-          <div className="h-[200px] border-t border-border bg-card flex flex-col">
+          <div className="h-[150px] md:h-[200px] border-t border-border bg-card flex flex-col">
             <Tabs value={activeIdeTab} onValueChange={setActiveIdeTab} className="flex flex-col h-full">
               <div className="flex items-center justify-between px-3 py-1 border-b border-border">
                 <TabsList className="h-8 bg-transparent">

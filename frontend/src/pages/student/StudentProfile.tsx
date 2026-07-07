@@ -93,7 +93,7 @@ export default function StudentProfile() {
 
   return (
     <AppLayout>
-      <h2 className="text-xl font-bold text-foreground mb-6">My Profile</h2>
+      <h2 className="text-lg md:text-xl font-bold text-foreground mb-4 md:mb-6">My Profile</h2>
 
       {/* Profile Card */}
       <div className="bg-card rounded-2xl p-6 border border-border shadow-sm mb-8">
@@ -143,7 +143,7 @@ export default function StudentProfile() {
             {joinError}
           </div>
         )}
-        <form onSubmit={handleJoin} className="flex gap-3">
+        <form onSubmit={handleJoin} className="flex flex-col sm:flex-row gap-3">
           <input
             type="text"
             value={inviteCode}
@@ -151,7 +151,7 @@ export default function StudentProfile() {
             placeholder="e.g. A3F7BC12"
             maxLength={12}
             disabled={joining}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm font-mono tracking-widest placeholder:text-muted-foreground placeholder:tracking-normal focus:outline-none focus:border-primary/60 transition-colors disabled:opacity-50"
+            className="w-full sm:flex-1 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm font-mono tracking-widest placeholder:text-muted-foreground placeholder:tracking-normal focus:outline-none focus:border-primary/60 transition-colors disabled:opacity-50"
           />
           <button
             type="submit"

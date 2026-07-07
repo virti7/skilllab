@@ -218,7 +218,7 @@ export default function TestPage() {
   if (showResult && submitResult) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="bg-card rounded-2xl p-8 shadow-lg border border-border max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-card rounded-2xl p-4 md:p-8 shadow-lg border border-border max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="text-center mb-6">
             <div className="text-6xl mb-3">{submitResult.passed ? "🎉" : "💪"}</div>
             <h2 className="text-2xl font-bold text-foreground">
@@ -310,7 +310,7 @@ export default function TestPage() {
   // Test UI
   return (
     <div className="min-h-screen bg-background">
-      <div className="bg-card border-b border-border px-8 py-4 flex items-center justify-between">
+      <div className="bg-card border-b border-border px-4 md:px-8 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link to="/student/tests" className="p-2 rounded-xl hover:bg-secondary">
             <ArrowLeft className="w-5 h-5 text-muted-foreground" />
@@ -330,7 +330,7 @@ export default function TestPage() {
         </div>
       </div>
 
-      <div className="px-8 pt-6 flex items-center gap-2 flex-wrap">
+      <div className="px-4 md:px-8 pt-6 flex items-center gap-2 flex-wrap">
         {questions?.map((_, i) => (
           <button
             key={i}
@@ -351,7 +351,7 @@ export default function TestPage() {
         ))}
       </div>
 
-      <div className="px-8 pt-4">
+      <div className="px-4 md:px-8 pt-4">
         <div className="h-2 bg-secondary rounded-full overflow-hidden">
           <div
             className="h-full bg-primary rounded-full transition-all"
@@ -360,8 +360,8 @@ export default function TestPage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto p-8">
-        <div className="bg-card rounded-2xl p-8 shadow-sm border border-border mb-6">
+      <div className="max-w-2xl mx-auto p-4 md:p-8">
+        <div className="bg-card rounded-2xl p-4 md:p-8 shadow-sm border border-border mb-6">
           <p className="text-lg font-semibold text-foreground">
             {getQuestionText(q)}
           </p>

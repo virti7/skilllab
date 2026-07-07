@@ -176,7 +176,7 @@ export function LoginForm({ onSubmit, onForgotPassword }: LoginFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button
           type="button"
           className="flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border bg-white text-xs font-medium text-foreground hover:bg-secondary/50 hover:border-primary/30 transition-all duration-200"

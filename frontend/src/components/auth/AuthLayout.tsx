@@ -34,13 +34,13 @@ interface AuthLayoutProps {
 
 export function AuthLayout({ children }: AuthLayoutProps) {
   return (
-    <div className="h-screen flex bg-gradient-to-br from-orange-50 via-white to-orange-50 overflow-hidden">
+    <div className="min-h-screen md:h-screen flex flex-col md:flex-row bg-gradient-to-br from-orange-50 via-white to-orange-50 overflow-y-auto md:overflow-hidden">
       {/* Left Side - Hero Section */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="hidden lg:flex flex-col justify-between w-[52%] p-10 xl:p-14 relative overflow-hidden"
+        className="hidden lg:flex flex-col justify-between flex-1 lg:w-1/2 xl:w-[52%] p-8 xl:p-14 relative overflow-hidden"
       >
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-orange-200/30 to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-orange-200/20 to-transparent rounded-full blur-3xl" />
@@ -50,7 +50,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.5 }}
-            className="flex items-center gap-3 mb-10"
+            className="flex items-center gap-3 mb-8 xl:mb-10"
           >
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
               <GraduationCap className="w-5 h-5 text-white" />
@@ -62,16 +62,16 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="mb-8"
+            className="mb-6 xl:mb-8"
           >
-            <h1 className="text-3xl xl:text-4xl font-bold text-foreground leading-tight mb-3">
+            <h1 className="text-2xl xl:text-4xl font-bold text-foreground leading-tight mb-3">
               Empowering Students
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-orange-600">
                 Through Smart Learning
               </span>
             </h1>
-            <p className="text-base text-muted-foreground max-w-lg leading-relaxed">
+            <p className="text-sm xl:text-base text-muted-foreground max-w-lg leading-relaxed">
               Transform your educational journey with AI-powered assessments,
               real-time analytics, and seamless institute management.
             </p>
@@ -91,18 +91,18 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 + i * 0.1, duration: 0.4 }}
-                  className="group relative overflow-hidden rounded-xl bg-white/70 backdrop-blur-sm border border-white/50 p-4 hover:bg-white/90 hover:shadow-lg hover:shadow-orange-500/5 hover:border-orange-200/50 transition-all duration-300"
+                  className="group relative overflow-hidden rounded-xl bg-white/70 backdrop-blur-sm border border-white/50 p-3 xl:p-4 hover:bg-white/90 hover:shadow-lg hover:shadow-orange-500/5 hover:border-orange-200/50 transition-all duration-300"
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-50 group-hover:opacity-100 transition-opacity duration-300`} />
                   <div className="relative z-10 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0">
-                      <Icon className="w-4 h-4 text-orange-500" />
+                    <div className="w-8 h-8 xl:w-9 xl:h-9 rounded-lg bg-white shadow-sm flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shrink-0">
+                      <Icon className="w-3.5 h-3.5 xl:w-4 xl:h-4 text-orange-500" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground text-xs mb-0.5">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-foreground text-[10px] xl:text-xs mb-0.5">
                         {feature.title}
                       </h3>
-                      <p className="text-[11px] text-muted-foreground">{feature.description}</p>
+                      <p className="text-[10px] xl:text-[11px] text-muted-foreground truncate">{feature.description}</p>
                     </div>
                   </div>
                 </motion.div>
@@ -117,7 +117,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           transition={{ delay: 0.8, duration: 0.5 }}
           className="relative z-10"
         >
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 text-[10px] xl:text-xs text-muted-foreground">
             <span className="w-6 h-px bg-muted-foreground/30" />
             Trusted by 500+ institutes worldwide
           </div>
@@ -129,25 +129,25 @@ export function AuthLayout({ children }: AuthLayoutProps) {
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6 }}
-        className="flex-1 flex items-center justify-center p-4 lg:p-8"
+        className="flex-1 flex items-center justify-center p-3 md:p-4 lg:p-8"
       >
-        <div className="w-full max-w-[520px] h-full flex items-center justify-center py-4">
-          <div className="w-full bg-white rounded-3xl shadow-xl shadow-orange-500/5 border border-orange-100/50 p-6 lg:p-8">
+        <div className="w-full max-w-[520px] h-full max-h-[90vh] md:max-h-none flex items-center justify-center py-2 md:py-4">
+          <div className="w-full bg-white rounded-2xl md:rounded-3xl shadow-lg md:shadow-xl shadow-orange-500/5 border border-orange-100/50 p-4 md:p-6 lg:p-8">
             {/* Header inside card */}
-            <div className="text-center mb-5">
+            <div className="text-center mb-3 md:mb-5">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
-                className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-orange-500/25"
+                className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center mx-auto mb-2 md:mb-3 shadow-lg shadow-orange-500/25"
               >
-                <GraduationCap className="w-6 h-6 text-white" />
+                <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </motion.div>
               <motion.h2
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3, duration: 0.4 }}
-                className="text-xl font-bold text-foreground"
+                className="text-lg md:text-xl font-bold text-foreground"
               >
                 Welcome to SkillLab
               </motion.h2>
@@ -155,7 +155,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.35, duration: 0.4 }}
-                className="text-xs text-muted-foreground mt-0.5"
+                className="text-[11px] md:text-xs text-muted-foreground mt-0.5"
               >
                 Sign in to continue or create an account
               </motion.p>

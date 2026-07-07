@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 export default function Tests() {
   return (
     <AppLayout>
-      <h2 className="text-xl font-bold text-foreground mb-6">All Tests</h2>
+      <h2 className="text-lg md:text-xl font-bold text-foreground mb-6">All Tests</h2>
       <div className="space-y-3">
         {todayTests.map((test) => (
           <div key={test.id} className="flex items-center gap-4 bg-card rounded-2xl p-5 shadow-sm border border-border">

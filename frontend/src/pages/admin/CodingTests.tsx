@@ -155,7 +155,7 @@ export default function CodingTests() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <FileCode className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">Coding Tests</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Coding Tests</h1>
             </div>
             <p className="text-muted-foreground">Create and manage timed coding tests</p>
           </div>
@@ -166,7 +166,7 @@ export default function CodingTests() {
                 Create Test
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-sm:max-w-[calc(100vw-16px)]">
               <DialogHeader>
                 <DialogTitle>Create Coding Test</DialogTitle>
               </DialogHeader>
@@ -231,6 +231,8 @@ export default function CodingTests() {
             <CardTitle>All Tests</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="overflow-x-auto">
+              <div className="min-w-[600px]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -283,6 +285,8 @@ export default function CodingTests() {
                 ))}
               </TableBody>
             </Table>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

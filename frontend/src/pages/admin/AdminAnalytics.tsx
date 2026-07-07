@@ -14,11 +14,11 @@ const testVolume = [
 export default function AdminAnalytics() {
   return (
     <AppLayout>
-      <h2 className="text-xl font-bold text-foreground mb-6">Analytics</h2>
+      <h2 className="text-lg md:text-xl font-bold text-foreground mb-4 md:mb-6">Analytics</h2>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {adminStats.map((card) => (
-          <div key={card.title} className="bg-card rounded-2xl p-5 border border-border shadow-sm">
+          <div key={card.title} className="bg-card rounded-2xl p-4 md:p-5 border border-border shadow-sm">
             <span className="text-2xl">{card.icon}</span>
             <p className="text-2xl font-bold text-foreground mt-2">{card.value}</p>
             <p className="text-sm text-muted-foreground mt-1">{card.title}</p>
@@ -27,7 +27,7 @@ export default function AdminAnalytics() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card rounded-2xl p-6 border border-border">
+        <div className="bg-card rounded-2xl p-4 md:p-6 border border-border">
           <h3 className="font-semibold text-foreground mb-4">Performance Trend</h3>
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={monthlyPerformance}>
@@ -39,7 +39,7 @@ export default function AdminAnalytics() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="bg-card rounded-2xl p-6 border border-border">
+        <div className="bg-card rounded-2xl p-4 md:p-6 border border-border">
           <h3 className="font-semibold text-foreground mb-4">Tests Conducted</h3>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={testVolume}>

@@ -130,7 +130,7 @@ export default function AdminDashboard() {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="space-y-6"
+        className="space-y-4 md:space-y-6"
       >
         {/* Header */}
         <motion.div
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
               <Sparkles className="w-4 h-4 text-primary" />
               <span>Institute Dashboard</span>
             </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
               Welcome back
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -492,6 +492,7 @@ export default function AdminDashboard() {
               </h3>
               <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden hover:shadow-md transition-all duration-300">
                 <div className="overflow-x-auto">
+                  <div className="min-w-[500px]">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-secondary/50">
@@ -552,6 +553,7 @@ export default function AdminDashboard() {
                       )}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             </motion.div>

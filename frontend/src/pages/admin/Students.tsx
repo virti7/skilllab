@@ -35,7 +35,7 @@ export default function Students() {
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-foreground">Students</h2>
+        <h2 className="text-lg md:text-xl font-bold text-foreground">Students</h2>
       </div>
 
       {loading ? (
@@ -63,7 +63,8 @@ export default function Students() {
             />
           </div>
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border overflow-x-auto">
+            <div className="min-w-[500px]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/50">
@@ -130,6 +131,7 @@ export default function Students() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       )}

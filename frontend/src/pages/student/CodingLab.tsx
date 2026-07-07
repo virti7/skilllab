@@ -52,7 +52,7 @@ export default function CodingLab() {
             <Code2 className='w-5 h-5 text-white' />
           </div>
           <div>
-            <h1 className='text-2xl font-bold text-foreground'>Coding Lab</h1>
+            <h1 className='text-xl md:text-2xl font-bold text-foreground'>Coding Lab</h1>
             <p className='text-sm text-muted-foreground'>Master your coding skills</p>
           </div>
         </div>
@@ -70,12 +70,12 @@ export default function CodingLab() {
           </p>
         </div>
       ) : (
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6'>
           {batches.map((batch, index) => (
             <button
               key={batch.id}
               onClick={() => handleBatchClick(batch)}
-              className='group relative overflow-hidden p-6 rounded-2xl border bg-card text-left transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1'
+              className='group relative overflow-hidden p-4 md:p-6 rounded-2xl border bg-card text-left transition-all duration-300 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1'
               style={{
                 animationDelay: `${index * 100}ms`
               }}

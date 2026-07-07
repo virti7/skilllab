@@ -186,7 +186,7 @@ export default function AdminCodingTestAnalytics() {
         </button>
         <div className="flex items-center gap-2 mb-1">
           <BarChart3 className="w-6 h-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">
             {analytics.test.title}
           </h1>
         </div>
@@ -342,6 +342,7 @@ export default function AdminCodingTestAnalytics() {
           </div>
         ) : (
           <div className="overflow-x-auto">
+            <div className="min-w-[600px]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-secondary/30">
@@ -429,6 +430,7 @@ export default function AdminCodingTestAnalytics() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

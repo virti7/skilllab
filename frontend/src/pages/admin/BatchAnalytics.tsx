@@ -71,7 +71,7 @@ export default function BatchAnalytics() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
           <Skeleton className="h-12 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
@@ -134,7 +134,7 @@ export default function BatchAnalytics() {
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-foreground">{batch.name}</h2>
+            <h2 className="text-xl md:text-2xl font-bold text-foreground">{batch.name}</h2>
             {batch.inviteCode && (
               <div className="flex items-center gap-2 mt-2">
                 <span className="text-sm text-muted-foreground">Invite Code:</span>
@@ -471,6 +471,7 @@ export default function BatchAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
+              <div className="min-w-[500px]">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
@@ -521,9 +522,10 @@ export default function BatchAnalytics() {
                       </tr>
                     );
                   })}
-                </tbody>
-              </table>
-              {sortedStudents.length === 0 && (
+              </tbody>
+            </table>
+            </div>
+            {sortedStudents.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No students enrolled in this batch
                 </div>
@@ -538,6 +540,7 @@ export default function BatchAnalytics() {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
+              <div className="min-w-[500px]">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
@@ -573,9 +576,10 @@ export default function BatchAnalytics() {
                       </td>
                     </tr>
                   ))}
-                </tbody>
-              </table>
-              {tests.length === 0 && (
+              </tbody>
+            </table>
+            </div>
+            {tests.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No tests in this batch
                 </div>

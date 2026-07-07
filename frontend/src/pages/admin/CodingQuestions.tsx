@@ -268,11 +268,11 @@ export default function CodingQuestions() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Code2 className="w-6 h-6 text-primary" />
-              <h1 className="text-2xl font-bold text-foreground">Coding Questions</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Coding Questions</h1>
             </div>
             <p className="text-muted-foreground">Create and manage coding problems</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setAiDialogOpen(true)}>
               <Sparkles className="w-4 h-4 mr-2" />
               Generate with AI
@@ -293,6 +293,7 @@ export default function CodingQuestions() {
         </div>
       ) : (
         <div className="rounded-md border">
+          <div className="overflow-x-auto"><div className="min-w-[500px]">
           <table className="w-full">
             <thead className="bg-muted/50">
               <tr>
@@ -330,6 +331,7 @@ export default function CodingQuestions() {
               ))}
             </tbody>
           </table>
+          </div></div>
         </div>
       )}
 

@@ -6,13 +6,13 @@ export default function Institutes() {
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-foreground">Manage Institutes</h2>
+        <h2 className="text-lg md:text-xl font-bold text-foreground">Manage Institutes</h2>
         <button className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-medium hover:opacity-90 transition-opacity">
           <Plus className="w-4 h-4" /> Add Institute
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {institutes.map((inst) => (
           <div key={inst.id} className="bg-card rounded-2xl p-5 border border-border shadow-sm">
             <div className="flex items-center justify-between mb-3">

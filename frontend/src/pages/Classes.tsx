@@ -6,7 +6,7 @@ const colors = ["bg-card-green", "bg-card-blue", "bg-card-orange", "bg-card-purp
 export default function Classes() {
   return (
     <AppLayout>
-      <h2 className="text-xl font-bold text-foreground mb-6">All Classes</h2>
+      <h2 className="text-lg md:text-xl font-bold text-foreground mb-6">All Classes</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {classes.map((cls, i) => (
           <div key={cls.id} className={`${colors[i % colors.length]} rounded-2xl p-6`}>
