@@ -21,34 +21,41 @@ export async function authenticate(req, res, next) {
       name: payload.name,
     });
 
-    let role = payload.role ? payload.role.toUpperCase() : null;
+    const jwtRole = payload.role ? payload.role.toUpperCase() : null;
 
-    if (!role) {
-      logger.warn('JWT missing role field — fetching from database', { userId: payload.id });
-      try {
-        const user = await prisma.user.findUnique({
-          where: { id: payload.id },
-          select: { role: true },
-        });
-        if (user) {
-          role = user.role;
-          logger.info('Role resolved from database fallback', { userId: payload.id, role });
-        } else {
-          logger.error('User not found in database during authenticate', { userId: payload.id });
-          return sendError(res, 'User not found', 401);
+    let role, dbInstituteId, dbName, dbEmail;
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.id },
+        select: { role: true, instituteId: true, name: true, email: true },
+      });
+      if (user) {
+        role = user.role;
+        dbInstituteId = user.instituteId;
+        dbName = user.name;
+        dbEmail = user.email;
+        if (jwtRole && jwtRole !== role) {
+          logger.warn('JWT role differs from database role — using database role', {
+            userId: payload.id,
+            jwtRole,
+            dbRole: role,
+          });
         }
-      } catch (dbErr) {
-        logger.error('Database lookup failed during authenticate', { userId: payload.id, error: dbErr.message });
-        return sendError(res, 'Authentication error', 500);
+      } else {
+        logger.error('User not found in database during authenticate', { userId: payload.id });
+        return sendError(res, 'User not found', 401);
       }
+    } catch (dbErr) {
+      logger.error('Database lookup failed during authenticate', { userId: payload.id, error: dbErr.message });
+      return sendError(res, 'Authentication error', 500);
     }
 
     req.user = {
       id: payload.id,
-      email: payload.email,
+      email: dbEmail,
       role,
-      name: payload.name,
-      instituteId: payload.instituteId,
+      name: dbName,
+      instituteId: dbInstituteId,
     };
 
     logger.debug('Authenticated user set on request', {
@@ -80,20 +87,18 @@ export async function optionalAuth(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    let role = payload.role ? payload.role.toUpperCase() : null;
 
-    if (!role) {
-      try {
-        const user = await prisma.user.findUnique({
-          where: { id: payload.id },
-          select: { role: true },
-        });
-        if (user) {
-          role = user.role;
-        }
-      } catch {
-        // Silently continue with null role for optional auth
+    let role;
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.id },
+        select: { role: true },
+      });
+      if (user) {
+        role = user.role;
       }
+    } catch {
+      // Silently continue with null role for optional auth
     }
 
     req.user = {

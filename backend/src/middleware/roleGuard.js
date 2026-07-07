@@ -22,7 +22,7 @@ export function requireRole(...roles) {
       return next();
     }
 
-    logger.warn('requireRole: JWT role mismatch — attempting database fallback', {
+    logger.info('requireRole: role mismatch — checking database', {
       userId: req.user.id,
       userRole: req.user.role,
       requiredRoles: normalized,
@@ -36,7 +36,7 @@ export function requireRole(...roles) {
 
       if (dbUser) {
         const dbRole = dbUser.role;
-        logger.info('requireRole: database fallback role', {
+        logger.info('requireRole: database role', {
           userId: req.user.id,
           dbRole,
           requiredRoles: normalized,
@@ -44,7 +44,7 @@ export function requireRole(...roles) {
 
         if (normalized.includes(dbRole)) {
           req.user.role = dbRole;
-          logger.info('requireRole: role corrected via database fallback', {
+          logger.info('requireRole: role corrected from database', {
             userId: req.user.id,
             correctedRole: dbRole,
           });
@@ -62,7 +62,16 @@ export function requireRole(...roles) {
       }
     } catch (dbErr) {
       logger.error('requireRole: database lookup failed', { userId: req.user.id, error: dbErr.message });
+      return sendError(res, 'Authentication error. Please login again.', 500);
     }
+
+    logger.warn('requireRole: access denied', {
+      userId: req.user.id,
+      userRole: req.user.role,
+      requiredRoles: normalized,
+      path: req.path,
+      method: req.method,
+    });
 
     const roleNames = normalized.map(r => r.toLowerCase().replace(/_/g, ' '));
     const message = `Access denied. Required role: ${roleNames.join(' or ')}. Your role: ${req.user.role ? req.user.role.toLowerCase().replace(/_/g, ' ') : 'none'}`;
