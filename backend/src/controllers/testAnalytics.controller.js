@@ -1,6 +1,7 @@
 import { prisma } from '../utils/prisma.js';
 import { analyzeStudentPerformance } from '../services/groq.service.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
 export async function getTestAnalytics(req, res, next) {
   try {
@@ -52,7 +53,8 @@ export async function getTestAnalytics(req, res, next) {
     }
 
     if (role === 'ADMIN' && test.batch?.instituteId !== instituteId) {
-      return sendError(res, 'Access denied', 403);
+      logger.warn('Test analytics institute mismatch', { testId, userId: req.user.id, role, testInstitute: test.batch?.instituteId, userInstitute: instituteId });
+      return sendError(res, 'You can only view analytics for tests in your institute', 403);
     }
 
     const questionAnalysis = test.questions.map((q) => {
@@ -184,7 +186,8 @@ export async function getTestAnalyticsSimple(req, res, next) {
     }
 
     if (role === 'ADMIN' && test.batch?.instituteId !== instituteId) {
-      return sendError(res, 'Access denied', 403);
+      logger.warn('Test analytics (simple) institute mismatch', { testId, userId: req.user.id, role, testInstitute: test.batch?.instituteId, userInstitute: instituteId });
+      return sendError(res, 'You can only view analytics for tests in your institute', 403);
     }
 
     const totalStudents = test._count.results;

@@ -3,14 +3,6 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "type": "module",
-  "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
-  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -30,7 +22,18 @@
     "prisma": "^5.21.0",
     "zod": "^3.25.0"
   },
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "vitest": "^3.1.1"
   }
 }

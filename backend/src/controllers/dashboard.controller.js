@@ -354,6 +354,7 @@ export async function getStudentAnalytics(req, res, next) {
     const { id: adminId, role, instituteId } = req.user;
 
     if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      logger.warn('Non-admin attempted to access student analytics dashboard', { studentId, adminId, role });
       return sendError(res, 'Access denied. Admin role required.', 403);
     }
 

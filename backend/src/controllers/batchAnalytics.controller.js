@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
 export async function getBatchAnalytics(req, res, next) {
   try {
@@ -40,7 +41,8 @@ export async function getBatchAnalytics(req, res, next) {
     }
 
     if (role === 'ADMIN' && batch.instituteId !== instituteId) {
-      return sendError(res, 'Access denied', 403);
+      logger.warn('Batch analytics institute mismatch', { batchId: id, userId: req.user.id, role, batchInstitute: batch.instituteId, userInstitute: instituteId });
+      return sendError(res, 'You can only view analytics for batches in your institute', 403);
     }
 
     const students = batch.batchStudents.map((bs) => bs.user);

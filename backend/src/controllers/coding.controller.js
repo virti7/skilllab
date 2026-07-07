@@ -162,7 +162,8 @@ export async function getQuestionById(req, res, next) {
     });
 
     if (!isMember) {
-      return sendError(res, 'Access denied', 403);
+      logger.warn('getQuestionById: student not a batch member', { userId, questionId: id, batchId: question.batchId });
+      return sendError(res, 'You are not a member of the batch this question belongs to', 403);
     }
 
     const lastResult = await prisma.codingResult.findFirst({
@@ -309,7 +310,8 @@ export async function getTestById(req, res, next) {
     });
 
     if (!isMember) {
-      return sendError(res, 'Access denied', 403);
+      logger.warn('getTestById: student not a batch member', { userId, testId: id, batchId });
+      return sendError(res, 'You are not a member of the batch this test belongs to', 403);
     }
 
     return res.json(test);
@@ -1059,7 +1061,8 @@ export async function getCodingHistory(req, res, next) {
     });
 
     if (!isMember) {
-      return sendError(res, 'Access denied to this batch', 403);
+      logger.warn('getCodingHistory: student not a batch member', { userId, batchId });
+      return sendError(res, 'You are not a member of this batch', 403);
     }
 
     const submissions = await prisma.codingResult.findMany({
@@ -1136,7 +1139,8 @@ export async function getCodingResultById(req, res, next) {
     }
 
     if (result.userId !== userId) {
-      return sendError(res, 'Access denied', 403);
+      logger.warn('getCodingResultById: user does not own this result', { resultId: id, userId, ownerId: result.userId });
+      return sendError(res, 'You can only view your own coding results', 403);
     }
 
     return res.json({
@@ -1172,7 +1176,8 @@ export async function getStudentCodingAnalytics(req, res, next) {
     });
 
     if (!isMember) {
-      return sendError(res, 'Access denied to this batch', 403);
+      logger.warn('getStudentCodingAnalytics: student not a batch member', { userId, batchId });
+      return sendError(res, 'You are not a member of this batch', 403);
     }
 
     const results = await prisma.codingResult.findMany({
@@ -1490,7 +1495,8 @@ export async function getCodingInsights(req, res, next) {
     });
 
     if (!isMember) {
-      return sendError(res, 'Access denied to this batch', 403);
+      logger.warn('getCodingInsights: student not a batch member', { userId, batchId });
+      return sendError(res, 'You are not a member of this batch', 403);
     }
 
     const results = await prisma.codingResult.findMany({

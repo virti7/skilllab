@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
 export async function getTestsByBatch(req, res, next) {
   try {
@@ -291,6 +292,7 @@ export async function deleteTest(req, res, next) {
     const { role, instituteId } = req.user;
 
     if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+      logger.warn('Non-admin attempted to delete test', { testId, userId: req.user.id, role });
       return sendError(res, 'Only admins can delete tests', 403);
     }
 

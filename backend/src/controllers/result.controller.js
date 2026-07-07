@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
 export async function getResults(req, res, next) {
   try {
@@ -131,7 +132,8 @@ export async function getResultById(req, res, next) {
     if (!result) return sendError(res, 'Result not found', 404);
 
     if (role === 'STUDENT' && result.userId !== userId) {
-      return sendError(res, 'Forbidden', 403);
+      logger.warn('Student attempted to access another student\'s result', { resultId, requestedUserId: userId, resultOwnerId: result.userId, role });
+      return sendError(res, 'You can only view your own results', 403);
     }
 
     return res.json({

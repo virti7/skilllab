@@ -1,12 +1,14 @@
 import { prisma } from '../utils/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
 export async function getStudentAnalytics(req, res, next) {
   try {
     const { id: userId, role } = req.user;
 
     if (role !== 'STUDENT') {
-      return sendError(res, 'Only students can access this endpoint', 403);
+      logger.warn('Non-student attempted to access student analytics endpoint', { userId, role, path: req.path });
+      return sendError(res, 'Only students can access student analytics', 403);
     }
 
     const results = await prisma.result.findMany({
