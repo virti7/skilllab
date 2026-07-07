@@ -35,20 +35,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import jsPDF from "jspdf";
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
-};
 
 function StatCard({
   icon: Icon,
@@ -69,7 +55,9 @@ function StatCard({
 }) {
   return (
     <motion.div
-      variants={itemVariants}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
       className="group relative overflow-hidden bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300"
     >
@@ -108,11 +96,11 @@ function SkeletonCard() {
   return (
     <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
       <div className="flex justify-between mb-3">
-        <div className="h-3 bg-muted rounded w-20" />
-        <div className="w-10 h-10 rounded-xl bg-muted" />
+        <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-20" />
+        <div className="w-10 h-10 rounded-xl bg-gray-300 dark:bg-gray-600" />
       </div>
-      <div className="h-8 bg-muted rounded w-24 mb-2" />
-      <div className="h-3 bg-muted rounded w-32" />
+      <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-24 mb-2" />
+      <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-32" />
     </div>
   );
 }
@@ -134,6 +122,13 @@ export default function StudentDashboard() {
   useEffect(() => {
     let cancelled = false;
 
+    const loadingTimeout = setTimeout(() => {
+      if (!cancelled) {
+        setLoading(false);
+        setError("Dashboard is taking longer than expected. Please try again.");
+      }
+    }, 10000);
+
     const fetchDashboard = async () => {
       try {
         const d = await dashboardApi.student();
@@ -148,7 +143,10 @@ export default function StudentDashboard() {
           setData(null);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          clearTimeout(loadingTimeout);
+        }
       }
     };
 
@@ -178,7 +176,10 @@ export default function StudentDashboard() {
     fetchTopics();
     fetchCombined();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      clearTimeout(loadingTimeout);
+    };
   }, []);
 
   const sortedTopics = [...topicData].sort((a, b) => {
@@ -218,9 +219,9 @@ export default function StudentDashboard() {
           className="space-y-4 md:space-y-6"
         >
           <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-muted rounded w-32" />
-            <div className="h-8 bg-muted rounded w-64" />
-            <div className="h-4 bg-muted rounded w-48" />
+            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-32" />
+            <div className="h-8 bg-gray-300 dark:bg-gray-600 rounded w-64" />
+            <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-48" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
@@ -229,26 +230,26 @@ export default function StudentDashboard() {
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
-              <div className="h-5 bg-muted rounded w-32 mb-4" />
-              <div className="h-52 bg-muted rounded" />
+              <div className="h-5 bg-gray-300 dark:bg-gray-600 rounded w-32 mb-4" />
+              <div className="h-52 bg-gray-300 dark:bg-gray-600 rounded" />
             </div>
             <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
-              <div className="h-5 bg-muted rounded w-40 mb-4" />
+              <div className="h-5 bg-gray-300 dark:bg-gray-600 rounded w-40 mb-4" />
               <div className="space-y-4">
                 {[1, 2, 3].map((i) => (
                   <div key={i}>
-                    <div className="h-4 bg-muted rounded w-24 mb-2" />
-                    <div className="h-2 bg-muted rounded-full" />
+                    <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-24 mb-2" />
+                    <div className="h-2 bg-gray-300 dark:bg-gray-600 rounded-full" />
                   </div>
                 ))}
               </div>
             </div>
           </div>
           <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
-            <div className="h-5 bg-muted rounded w-24 mb-4" />
+            <div className="h-5 bg-gray-300 dark:bg-gray-600 rounded w-24 mb-4" />
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-12 bg-muted rounded" />
+                <div key={i} className="h-12 bg-gray-300 dark:bg-gray-600 rounded" />
               ))}
             </div>
           </div>
@@ -286,14 +287,16 @@ export default function StudentDashboard() {
   return (
     <AppLayout rightPanel={<RightPanel />}>
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
         className="space-y-4 md:space-y-6"
       >
         {/* Welcome Banner */}
         <motion.div
-          variants={itemVariants}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
           className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 p-4 md:p-6 lg:p-8"
         >
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
@@ -342,7 +345,9 @@ export default function StudentDashboard() {
 
         {/* Statistics Cards - Always visible with zero fallbacks */}
         <motion.div
-          variants={itemVariants}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
         >
           <StatCard
@@ -419,7 +424,9 @@ export default function StudentDashboard() {
 
         {/* Charts Row */}
         <motion.div
-          variants={itemVariants}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-4"
         >
           {/* Score Trend */}
@@ -635,7 +642,9 @@ export default function StudentDashboard() {
 
         {/* Coding Progress & Recent Activity Row */}
         <motion.div
-          variants={itemVariants}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-4"
         >
           {/* Coding Progress */}
@@ -763,7 +772,9 @@ export default function StudentDashboard() {
 
         {/* My Tests Table */}
         <motion.div
-          variants={itemVariants}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
           className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden hover:shadow-md transition-all duration-300"
         >
           <div className="p-5 border-b border-border flex items-center justify-between">

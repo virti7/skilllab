@@ -77,7 +77,8 @@ async function refreshAccessToken(): Promise<string | null> {
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
-  retries = 1
+  retries = 1,
+  timeoutMs = 30000
 ): Promise<T> {
   const token = getAccessToken();
   const headers: Record<string, string> = {
@@ -89,19 +90,22 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const config: RequestInit = {
-    ...options,
-    headers,
-  };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const config: RequestInit = { ...options, headers, signal: controller.signal };
 
   try {
     let res = await fetch(`${API_BASE}${endpoint}`, config);
+    clearTimeout(timeoutId);
 
     if (res.status === 401 && token) {
       const newToken = await refreshAccessToken();
       if (newToken) {
         headers['Authorization'] = `Bearer ${newToken}`;
-        res = await fetch(`${API_BASE}${endpoint}`, { ...config, headers });
+        const retryController = new AbortController();
+        const retryTimeoutId = setTimeout(() => retryController.abort(), timeoutMs);
+        res = await fetch(`${API_BASE}${endpoint}`, { ...config, headers, signal: retryController.signal });
+        clearTimeout(retryTimeoutId);
       }
     }
 
@@ -127,9 +131,14 @@ async function request<T>(
   } catch (error) {
     if (error instanceof ApiError) throw error;
 
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      clearTokens();
+      throw new ApiError('Request timed out. Please try again.', 0);
+    }
+
     if (retries > 0) {
       await new Promise(r => setTimeout(r, 1000));
-      return request<T>(endpoint, options, retries - 1);
+      return request<T>(endpoint, options, retries - 1, timeoutMs);
     }
 
     throw new ApiError('Network error. Please check your connection.', 0);
