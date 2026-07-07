@@ -1,5 +1,6 @@
 import { prisma } from '../utils/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
+import logger from '../utils/logger.js';
 
 export async function adminDashboard(req, res, next) {
   try {
@@ -85,11 +86,14 @@ export async function studentDashboard(req, res, next) {
   try {
     const { id: userId, instituteId } = req.user;
 
+    logger.debug('studentDashboard called', { userId, instituteId });
+
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
       select: { batchId: true },
     });
     const batchIds = batchStudents.map((bs) => bs.batchId);
+    const batchesJoined = batchStudents.length;
 
     const [results, assignedTests] = await Promise.all([
       prisma.result.findMany({
@@ -117,6 +121,8 @@ export async function studentDashboard(req, res, next) {
 
     const pendingTests = assignedTests.filter((t) => t.results.length === 0);
     const completedTests = results;
+    const pendingCount = pendingTests.length;
+    const completedCount = completedTests.length;
     const avgScore =
       results.length > 0
         ? Math.round(results.reduce((s, r) => s + r.percentage, 0) / results.length)
@@ -127,27 +133,34 @@ export async function studentDashboard(req, res, next) {
       score: r.percentage,
     }));
 
-    const rankData = await prisma.$queryRaw`
-      SELECT rank FROM (
-        SELECT
-          u.id,
-          RANK() OVER (ORDER BY COALESCE(SUM(r.score), 0) DESC) AS rank
-        FROM users u
-        LEFT JOIN results r ON r."userId" = u.id
-        LEFT JOIN tests t ON t.id = r."testId" AND t."instituteId" = ${instituteId || ''}
-        WHERE u."instituteId" = ${instituteId || ''}
-          AND u.role = 'STUDENT'
-        GROUP BY u.id
-      ) ranked WHERE id = ${userId}
-    `;
+    let batchRank = null;
+    try {
+      const safeInstituteId = instituteId || '';
+      const rankData = await prisma.$queryRaw`
+        SELECT rank FROM (
+          SELECT
+            u.id,
+            RANK() OVER (ORDER BY COALESCE(SUM(r.score), 0) DESC) AS rank
+          FROM users u
+          LEFT JOIN results r ON r."userId" = u.id
+          LEFT JOIN tests t ON t.id = r."testId" AND t."instituteId" = ${safeInstituteId}
+          WHERE u."instituteId" = ${safeInstituteId}
+            AND u.role = 'STUDENT'
+          GROUP BY u.id
+        ) ranked WHERE id = ${userId}
+      `;
+      batchRank = rankData[0]?.rank ? Number(rankData[0].rank) : null;
+    } catch (rankErr) {
+      logger.error('Rank query failed', { userId, error: rankErr.message });
+      batchRank = null;
+    }
 
-    const batchRank = rankData[0]?.rank ? Number(rankData[0].rank) : null;
-
-    return res.json({
-      pendingCount: pendingTests.length,
-      completedCount: completedTests.length,
+    return sendSuccess(res, {
+      pendingCount,
+      completedCount,
       avgScore,
       batchRank,
+      batchesJoined,
       scoreTrend,
       recentTests: assignedTests.map((t) => ({
         id: t.id,
@@ -158,8 +171,9 @@ export async function studentDashboard(req, res, next) {
         score: t.results[0]?.percentage ?? null,
         questionCount: t._count.questions,
       })),
-    });
+    }, 'Student dashboard data retrieved');
   } catch (err) {
+    logger.error('studentDashboard error', { userId: req.user?.id, error: err.message });
     next(err);
   }
 }

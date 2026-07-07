@@ -2,8 +2,8 @@ import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { performanceCards } from "@/data/dummy";
 import { batchApi, resultApi, Batch, ResultSummary, studentApi, StudentAnalyticsData } from "@/lib/api";
-import { useState, useEffect } from "react";
-import { Loader2, Users, BookOpen } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Loader2, Users, BookOpen, CheckCircle2, XCircle } from "lucide-react";
 
 export default function StudentProfile() {
   const { user } = useAuth();
@@ -20,24 +20,30 @@ export default function StudentProfile() {
   const [joinMsg, setJoinMsg] = useState("");
   const [joinError, setJoinError] = useState("");
 
-  useEffect(() => {
-    Promise.all([
-      batchApi.get().catch(() => [] as Batch[]),
-      resultApi.get().catch(() => [] as ResultSummary[]),
-    ]).then(([b, r]) => {
+  const loadProfileData = useCallback(async () => {
+    setProfileLoading(true);
+    try {
+      const [b, r] = await Promise.all([
+        batchApi.get().catch(() => [] as Batch[]),
+        resultApi.get().catch(() => [] as ResultSummary[]),
+      ]);
       setBatches(b);
       setResults(r);
+    } finally {
       setProfileLoading(false);
-    });
+    }
+  }, []);
+
+  useEffect(() => {
+    loadProfileData();
 
     studentApi.getAnalytics()
       .then((data) => {
-        console.log("Student Analytics:", data);
         setAnalytics(data);
       })
       .catch((err) => console.error("Analytics error:", err))
       .finally(() => setAnalyticsLoading(false));
-  }, []);
+  }, [loadProfileData]);
 
   const avgScore =
     results.length > 0
@@ -53,13 +59,13 @@ export default function StudentProfile() {
     try {
       const res = await batchApi.join(inviteCode.trim().toUpperCase());
       setJoinMsg(`Joined "${res.batch.name}" successfully!`);
-      setBatches((prev) => [
-        res.batch,
-        ...prev.filter((b) => b.id !== res.batch.id),
-      ]);
       setInviteCode("");
+
+      // Refresh profile data immediately
+      loadProfileData();
     } catch (err: unknown) {
-      setJoinError(err instanceof Error ? err.message : "Failed to join batch");
+      const message = err instanceof Error ? err.message : "Failed to join batch";
+      setJoinError(message);
     } finally {
       setJoining(false);
     }
@@ -126,12 +132,14 @@ export default function StudentProfile() {
           Enter the invite code provided by your admin to join a batch.
         </p>
         {joinMsg && (
-          <div className="mb-4 px-4 py-3 bg-success/10 text-success text-sm rounded-xl border border-success/20">
+          <div className="mb-4 px-4 py-3 bg-success/10 text-success text-sm rounded-xl border border-success/20 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
             {joinMsg}
           </div>
         )}
         {joinError && (
-          <div className="mb-4 px-4 py-3 bg-destructive/10 text-destructive text-sm rounded-xl border border-destructive/20">
+          <div className="mb-4 px-4 py-3 bg-destructive/10 text-destructive text-sm rounded-xl border border-destructive/20 flex items-center gap-2">
+            <XCircle className="w-4 h-4 shrink-0" />
             {joinError}
           </div>
         )}
@@ -142,15 +150,16 @@ export default function StudentProfile() {
             onChange={(e) => { setInviteCode(e.target.value.toUpperCase()); setJoinError(""); setJoinMsg(""); }}
             placeholder="e.g. A3F7BC12"
             maxLength={12}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm font-mono tracking-widest placeholder:text-muted-foreground placeholder:tracking-normal focus:outline-none focus:border-primary/60 transition-colors"
+            disabled={joining}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm font-mono tracking-widest placeholder:text-muted-foreground placeholder:tracking-normal focus:outline-none focus:border-primary/60 transition-colors disabled:opacity-50"
           />
           <button
             type="submit"
             disabled={joining || !inviteCode.trim()}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:opacity-90 disabled:opacity-60"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium hover:opacity-90 disabled:opacity-60 transition-opacity"
           >
             {joining && <Loader2 className="w-4 h-4 animate-spin" />}
-            Join Batch
+            {joining ? "Joining..." : "Join Batch"}
           </button>
         </form>
       </div>

@@ -558,6 +558,7 @@ export interface StudentDashboardData {
   completedCount: number;
   avgScore: number;
   batchRank: number | null;
+  batchesJoined: number;
   scoreTrend: { test: string; score: number }[];
   recentTests: {
     id: string;

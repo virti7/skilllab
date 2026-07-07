@@ -81,7 +81,7 @@ export async function getStudentAnalytics(req, res, next) {
       submittedAt: r.submittedAt,
     }));
 
-    res.json({
+    return sendSuccess(res, {
       testsTaken,
       avgScore,
       rank,
@@ -144,7 +144,7 @@ export async function getTopicBreakdown(req, res, next) {
 
     formatted.sort((a, b) => b.percentage - a.percentage);
 
-    res.json({
+    return sendSuccess(res, {
       topics: formatted,
     });
   } catch (err) {
@@ -225,7 +225,7 @@ export async function getCompletedTestsAnalytics(req, res, next) {
       };
     });
 
-    res.json({ tests: formatted });
+    return sendSuccess(res, { tests: formatted });
   } catch (err) {
     next(err);
   }

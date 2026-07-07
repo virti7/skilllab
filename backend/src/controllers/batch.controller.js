@@ -12,8 +12,16 @@ export async function createBatch(req, res, next) {
     const { name } = req.body;
     const { instituteId } = req.user;
 
+    logger.debug('createBatch request', {
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      instituteId,
+      batchName: name,
+    });
+
     if (!name) return sendError(res, 'Batch name is required', 400);
-    if (!instituteId) return sendError(res, 'Admin must belong to an institute', 400);
+    if (!instituteId) return sendError(res, 'Admin must belong to an institute to create a batch', 400);
 
     const inviteCode = generateInviteCode();
 
@@ -25,7 +33,9 @@ export async function createBatch(req, res, next) {
       },
     });
 
-    return sendSuccess(res, batch, 'Batch created', 201);
+    logger.info('Batch created', { batchId: batch.id, name, inviteCode, instituteId, createdBy: req.user.id });
+
+    return sendSuccess(res, batch, 'Batch created successfully', 201);
   } catch (err) {
     next(err);
   }
@@ -35,36 +45,64 @@ export async function joinBatch(req, res, next) {
   try {
     const { inviteCode } = req.body;
     const userId = req.user.id;
+    const userRole = req.user.role;
+    const userInstituteId = req.user.instituteId;
 
-    logger.debug('joinBatch request', {
-      userId: req.user.id,
+    logger.info('joinBatch request', {
+      userId,
       email: req.user.email,
-      role: req.user.role,
-      instituteId: req.user.instituteId,
+      role: userRole,
+      instituteId: userInstituteId,
       inviteCode,
     });
 
-    if (!inviteCode) return sendError(res, 'Invite code is required', 400);
+    if (!inviteCode) {
+      logger.warn('joinBatch failed: invite code missing', { userId });
+      return sendError(res, 'Invite code is required', 400);
+    }
 
     const batch = await prisma.batch.findUnique({ where: { inviteCode } });
-    if (!batch) return sendError(res, 'Invalid invite code', 404);
+    if (!batch) {
+      logger.warn('joinBatch failed: invalid invite code', { userId, inviteCode });
+      return sendError(res, 'Invalid invite code. Please check with your admin.', 404);
+    }
+
+    logger.info('joinBatch: batch found', {
+      userId,
+      batchId: batch.id,
+      batchName: batch.name,
+      batchInstituteId: batch.instituteId,
+    });
 
     const existing = await prisma.batchStudent.findUnique({
       where: { batchId_userId: { batchId: batch.id, userId } },
     });
-    if (existing) return sendError(res, 'Already joined this batch', 409);
+    if (existing) {
+      logger.warn('joinBatch failed: already joined', { userId, batchId: batch.id });
+      return sendError(res, 'You have already joined this batch', 409);
+    }
 
     await prisma.batchStudent.create({
       data: { batchId: batch.id, userId },
     });
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { instituteId: batch.instituteId },
-    });
+    if (userInstituteId !== batch.instituteId) {
+      logger.info('joinBatch: updating user institute', {
+        userId,
+        oldInstituteId: userInstituteId,
+        newInstituteId: batch.instituteId,
+      });
+      await prisma.user.update({
+        where: { id: userId },
+        data: { instituteId: batch.instituteId },
+      });
+    }
 
-    return sendSuccess(res, { message: 'Joined batch successfully', batch });
+    logger.info('joinBatch: success', { userId, batchId: batch.id, batchName: batch.name });
+
+    return sendSuccess(res, { message: 'Joined batch successfully', batch: { id: batch.id, name: batch.name, joinedAt: new Date().toISOString() } });
   } catch (err) {
+    logger.error('joinBatch error', { userId: req.user?.id, inviteCode: req.body?.inviteCode, error: err.message });
     next(err);
   }
 }
@@ -72,19 +110,26 @@ export async function joinBatch(req, res, next) {
 export async function getBatchStudents(req, res, next) {
   try {
     const { id } = req.params;
-    const { instituteId } = req.user;
+    const { instituteId, role } = req.user;
+
+    logger.debug('getBatchStudents request', { batchId: id, userId: req.user.id, role });
 
     const batch = await prisma.batch.findUnique({
       where: { id },
-      select: { instituteId: true },
+      select: { instituteId: true, name: true },
     });
 
     if (!batch) {
       return sendError(res, 'Batch not found', 404);
     }
 
-    if (batch.instituteId !== instituteId && req.user.role === 'ADMIN') {
-      return sendError(res, 'Access denied', 403);
+    if (role === 'ADMIN' && batch.instituteId !== instituteId) {
+      logger.warn('getBatchStudents denied: institute mismatch', {
+        userId: req.user.id,
+        batchInstituteId: batch.instituteId,
+        userInstituteId: instituteId,
+      });
+      return sendError(res, 'You do not have access to this batch', 403);
     }
 
     const students = await prisma.batchStudent.findMany({
@@ -138,9 +183,9 @@ export async function getBatchStudents(req, res, next) {
       })
     );
 
-    return res.json({
+    return sendSuccess(res, {
       batchId: id,
-      batchName: students[0]?.batch.name || '',
+      batchName: batch.name,
       students: studentsWithResults,
     });
   } catch (err) {
@@ -152,6 +197,8 @@ export async function getBatches(req, res, next) {
   try {
     const { role, instituteId, id: userId } = req.user;
 
+    logger.debug('getBatches request', { userId, role, instituteId });
+
     if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
       const batches = await prisma.batch.findMany({
         where: { instituteId },
@@ -162,7 +209,7 @@ export async function getBatches(req, res, next) {
         orderBy: { createdAt: 'desc' },
       });
 
-      return res.json(
+      return sendSuccess(res,
         batches.map((b) => ({
           id: b.id,
           name: b.name,
@@ -186,7 +233,7 @@ export async function getBatches(req, res, next) {
       },
     });
 
-    return res.json(
+    return sendSuccess(res,
       batchStudents.map((bs) => ({
         id: bs.batch.id,
         name: bs.batch.name,
@@ -204,15 +251,14 @@ export async function getAdminBatches(req, res, next) {
   try {
     const { role, instituteId } = req.user;
 
-    if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
-      return sendError(res, 'Access denied', 403);
-    }
+    logger.debug('getAdminBatches request', { userId: req.user.id, role, instituteId });
 
     const batches = await prisma.batch.findMany({
+      where: role === 'SUPER_ADMIN' ? undefined : { instituteId },
       orderBy: { createdAt: 'desc' }
     });
 
-    return res.json(batches);
+    return sendSuccess(res, batches);
   } catch (err) {
     next(err);
   }
@@ -221,6 +267,8 @@ export async function getAdminBatches(req, res, next) {
 export async function getStudentBatches(req, res, next) {
   try {
     const userId = req.user.id;
+
+    logger.debug('getStudentBatches request', { userId });
 
     const batchStudents = await prisma.batchStudent.findMany({
       where: { userId },
@@ -235,7 +283,7 @@ export async function getStudentBatches(req, res, next) {
       joinedAt: bs.joinedAt,
     }));
 
-    return res.json(batches);
+    return sendSuccess(res, batches);
   } catch (err) {
     next(err);
   }
@@ -246,9 +294,11 @@ export async function deleteBatch(req, res, next) {
     const { batchId } = req.params;
     const { instituteId, role } = req.user;
 
+    logger.debug('deleteBatch request', { batchId, userId: req.user.id, role, instituteId });
+
     const batch = await prisma.batch.findUnique({
       where: { id: batchId },
-      select: { instituteId: true },
+      select: { instituteId: true, name: true },
     });
 
     if (!batch) {
@@ -256,7 +306,13 @@ export async function deleteBatch(req, res, next) {
     }
 
     if (role === 'ADMIN' && batch.instituteId !== instituteId) {
-      return sendError(res, 'Access denied', 403);
+      logger.warn('deleteBatch denied: institute mismatch', {
+        userId: req.user.id,
+        batchId,
+        batchInstituteId: batch.instituteId,
+        userInstituteId: instituteId,
+      });
+      return sendError(res, 'You can only delete batches from your own institute', 403);
     }
 
     await prisma.$transaction(async (tx) => {
@@ -279,6 +335,8 @@ export async function deleteBatch(req, res, next) {
 
       await tx.batch.delete({ where: { id: batchId } });
     });
+
+    logger.info('Batch deleted', { batchId, batchName: batch.name, deletedBy: req.user.id });
 
     return sendSuccess(res, { message: 'Batch deleted successfully' });
   } catch (err) {
