@@ -24,6 +24,7 @@ import practiceSheetsRoutes from './routes/practiceSheets.routes.js';
 import codingRoutes from './routes/coding.routes.js';
 import compilerRoutes from './routes/compiler.routes.js';
 import crmRoutes from './routes/crm.routes.js';
+import superAdminRoutes from './routes/superAdmin.routes.js';
 import { seedSuperAdmin } from './seed.js';
 
 const app = express();
@@ -162,6 +163,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/coding', codingRoutes);
 app.use('/api/compiler', compilerRoutes);
 app.use('/api/crm', crmRoutes);
+app.use('/api/super-admin', superAdminRoutes);
 app.use('/api/practice-sheets', practiceSheetsRoutes);
 
 // 404 handler - must be after all routes

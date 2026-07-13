@@ -3,7 +3,6 @@ import { Plus, Loader2, Trash2, BookOpen, Sparkles, ChevronDown, ChevronUp, Cloc
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { testApi, batchApi, testAnalyticsApi, TestSummary, Batch, NewQuestion, aiApi, Difficulty, AIGeneratedQuestion, TestAnalyticsResponse } from "@/lib/api";
-import { todayTests } from "@/data/dummy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -66,17 +65,7 @@ export default function AdminTests() {
       setTests(t);
       setBatches(b);
     } catch {
-      setTests(
-        todayTests.map((t) => ({
-          id: String(t.id),
-          title: t.name,
-          duration: 30,
-          batchName: t.course,
-          questionCount: 5,
-          submissionCount: 0,
-          status: t.status as "pending" | "completed",
-        }))
-      );
+      setTests([]);
     } finally {
       setLoading(false);
     }

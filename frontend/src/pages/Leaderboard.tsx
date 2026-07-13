@@ -1,5 +1,4 @@
 import { AppLayout } from "@/components/AppLayout";
-import { leaderboard as dummyLeaderboard } from "@/data/dummy";
 import { Trophy, Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { leaderboardApi, LeaderboardEntry, batchApi, Batch } from "@/lib/api";
@@ -16,7 +15,6 @@ export default function Leaderboard() {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [selectedBatch, setSelectedBatch] = useState("");
   const [loading, setLoading] = useState(true);
-  const [usingDummy, setUsingDummy] = useState(false);
 
   useEffect(() => {
     batchApi.get().then(setBatches).catch(() => {});
@@ -32,19 +30,7 @@ export default function Leaderboard() {
       setEntries(data);
       setUsingDummy(false);
     } catch {
-      // Fallback to dummy
-      setEntries(
-        dummyLeaderboard.map((s) => ({
-          rank: s.rank,
-          userId: String(s.rank),
-          name: s.name,
-          totalScore: s.score,
-          testsCompleted: 0,
-          avgPercentage: 0,
-          avatar: s.avatar,
-        }))
-      );
-      setUsingDummy(true);
+      setEntries([]);
     } finally {
       setLoading(false);
     }
@@ -64,11 +50,6 @@ export default function Leaderboard() {
         <div className="flex items-center gap-3">
           <Trophy className="w-6 h-6 text-primary" />
           <h2 className="text-lg md:text-xl font-bold text-foreground">Leaderboard</h2>
-          {usingDummy && (
-            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-lg">
-              demo data
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-2">
           {batches.length > 0 && (

@@ -1,6 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
-import { performanceCards } from "@/data/dummy";
 import { batchApi, resultApi, Batch, ResultSummary, studentApi, StudentAnalyticsData } from "@/lib/api";
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, Users, BookOpen, CheckCircle2, XCircle } from "lucide-react";
@@ -88,7 +87,12 @@ export default function StudentProfile() {
         { title: "Passed", value: String(results.filter((r) => r.passed).length), change: "", icon: "✅" },
       ];
     }
-    return performanceCards;
+    return [
+      { title: "Tests Taken", value: "0", change: "", icon: "📝" },
+      { title: "Average Score", value: "0%", change: "", icon: "📈" },
+      { title: "Batches Joined", value: String(batches.length), change: "", icon: "👥" },
+      { title: "Passed", value: "0", change: "", icon: "✅" },
+    ];
   })();
 
   return (

@@ -609,6 +609,7 @@ export interface BatchPerformanceResponse {
 
 export const dashboardApi = {
   admin: () => api.get<AdminDashboardData>('/dashboard/admin'),
+  adminAnalytics: () => api.get<AdminAnalyticsData>('/dashboard/admin/analytics'),
   student: () => api.get<StudentDashboardData>('/dashboard/student'),
   getBatchPerformance: () => api.get<BatchPerformanceResponse>('/dashboard/batch-performance'),
 };
@@ -641,6 +642,104 @@ export interface StudentAnalyticsData {
 export const adminApi = {
   getStudents: () => api.get<AdminStudent[]>('/dashboard/students'),
   getStudentAnalytics: (studentId: string) => api.get<StudentAnalyticsData>(`/dashboard/student/${studentId}`),
+};
+
+// ─── Admin Analytics ──────────────────────────────────────
+
+export interface AdminAnalyticsData {
+  stats: {
+    totalStudents: number;
+    totalBatches: number;
+    totalTests: number;
+    avgScore: number;
+  };
+  monthlyPerformance: { month: string; score: number }[];
+  testsByMonth: { month: string; tests: number }[];
+}
+
+// ─── Super Admin ──────────────────────────────────────────
+
+export interface SuperAdminDashboardData {
+  stats: {
+    totalInstitutes: number;
+    totalUsers: number;
+    totalStudents: number;
+    totalAdmins: number;
+    totalTests: number;
+    avgScore: number;
+  };
+  monthlyPerformance: { month: string; score: number }[];
+  recentInstitutes: {
+    id: string;
+    name: string;
+    userCount: number;
+    batchCount: number;
+    createdAt: string;
+  }[];
+}
+
+export interface SuperAdminInstitute {
+  id: string;
+  name: string;
+  studentCount: number;
+  userCount: number;
+  batchCount: number;
+  createdAt: string;
+}
+
+export interface SuperAdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  instituteName: string | null;
+  instituteId: string | null;
+  createdAt: string;
+}
+
+export interface SuperAdminInstitutesResponse {
+  institutes: SuperAdminInstitute[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface SuperAdminUsersResponse {
+  users: SuperAdminUser[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export const superAdminApi = {
+  getDashboard: () => api.get<SuperAdminDashboardData>('/super-admin/dashboard'),
+
+  getInstitutes: (params?: { search?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return api.get<SuperAdminInstitutesResponse>(`/super-admin/institutes${qs ? `?${qs}` : ''}`);
+  },
+
+  getUsers: (params?: { search?: string; role?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.role && params.role !== 'ALL') query.set('role', params.role);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return api.get<SuperAdminUsersResponse>(`/super-admin/users${qs ? `?${qs}` : ''}`);
+  },
+
+  getSubscriptions: () => api.get<{ plans: unknown[]; message: string }>('/super-admin/subscriptions'),
 };
 
 // ─── AI Generation ────────────────────────────────────────

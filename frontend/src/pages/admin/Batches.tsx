@@ -3,7 +3,6 @@ import { Plus, Loader2, Copy, Check, Users, BookOpen, BarChart3, Trash2, AlertTr
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { batchApi, Batch } from "@/lib/api";
-import { batches as dummyBatches } from "@/data/dummy";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -45,16 +44,7 @@ export default function Batches() {
       const data = await batchApi.get();
       setBatches(data);
     } catch {
-      // Fallback to dummy data if backend is unavailable
-      setBatches(
-        dummyBatches.map((b) => ({
-          id: String(b.id),
-          name: b.name,
-          studentCount: b.students,
-          testCount: 0,
-          createdAt: new Date().toISOString(),
-        }))
-      );
+      setBatches([]);
     } finally {
       setLoading(false);
     }

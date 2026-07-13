@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { testQuestions, testQuestionBank } from "@/data/dummy";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Clock, ArrowLeft, Download, Loader2, CheckCircle, XCircle } from "lucide-react";
 import jsPDF from "jspdf";
@@ -46,25 +45,14 @@ export default function TestPage() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitted, setSubmitted] = useState(false);
 
-  const questions: LocalQuestion[] = (() => {
-    if (apiTest?.questions?.length) {
-      return apiTest.questions;
-    }
-    const numId = testId ? Number(testId) : null;
-    if (numId && testQuestionBank[numId]) return testQuestionBank[numId];
-    return testQuestions;
-  })();
+  const questions: LocalQuestion[] = apiTest?.questions ?? [];
 
   const durationMinutes = apiTest?.duration ?? questions.length * 2;
 
   useEffect(() => {
     if (!testId) {
       setFetchLoading(false);
-      return;
-    }
-    const numId = Number(testId);
-    if (!isNaN(numId) && numId < 1_000_000) {
-      setFetchLoading(false);
+      setFetchError("No test ID provided");
       return;
     }
     testApi

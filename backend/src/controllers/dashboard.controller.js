@@ -348,6 +348,68 @@ export async function getBatchPerformance(req, res, next) {
   }
 }
 
+export async function adminAnalytics(req, res, next) {
+  try {
+    const { instituteId } = req.user;
+
+    const [totalStudents, totalBatches, totalTests, results] = await Promise.all([
+      prisma.user.count({ where: { instituteId, role: 'STUDENT' } }),
+      prisma.batch.count({ where: { instituteId } }),
+      prisma.test.count({ where: { instituteId } }),
+      prisma.result.findMany({
+        where: { test: { instituteId } },
+        select: { percentage: true, submittedAt: true },
+      }),
+    ]);
+
+    const avgScore = results.length > 0
+      ? Math.round(results.reduce((s, r) => s + r.percentage, 0) / results.length)
+      : 0;
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const monthlyResults = results.filter((r) => r.submittedAt >= sixMonthsAgo);
+    const monthlyMap = {};
+    monthlyResults.forEach((r) => {
+      const month = r.submittedAt.toLocaleString('en-US', { month: 'short' });
+      if (!monthlyMap[month]) monthlyMap[month] = [];
+      monthlyMap[month].push(r.percentage);
+    });
+    const monthlyPerformance = Object.entries(monthlyMap).map(([month, scores]) => ({
+      month,
+      score: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
+    }));
+
+    const testCountsByMonth = {};
+    const allTests = await prisma.test.findMany({
+      where: { instituteId, createdAt: { gte: sixMonthsAgo } },
+      select: { createdAt: true },
+    });
+    allTests.forEach((t) => {
+      const month = t.createdAt.toLocaleString('en-US', { month: 'short' });
+      testCountsByMonth[month] = (testCountsByMonth[month] || 0) + 1;
+    });
+    const testsByMonth = Object.entries(testCountsByMonth).map(([month, tests]) => ({
+      month,
+      tests,
+    }));
+
+    return sendSuccess(res, {
+      stats: {
+        totalStudents,
+        totalBatches,
+        totalTests,
+        avgScore,
+      },
+      monthlyPerformance,
+      testsByMonth,
+    }, 'Admin analytics retrieved');
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getStudentAnalytics(req, res, next) {
   try {
     const { id: studentId } = req.params;
