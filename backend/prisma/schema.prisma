@@ -30,6 +30,7 @@ model User {
   results       Result[]
   codingResults CodingResult[]
   testAttempts  TestAttempt[]
+  assignedLeads Lead[]
   institute     Institute?     @relation(fields: [instituteId], references: [id])
 
   @@index([email])
@@ -289,4 +290,44 @@ model TestAttempt {
   @@index([testId])
   @@index([status])
   @@map("test_attempts")
+}
+
+// ================= CRM =================
+
+model Lead {
+  id              String     @id @default(uuid())
+  name            String
+  email           String
+  phone           String
+  courseInterested String
+  status          String     @default("NEW")
+  source          String?
+  assignedTo      String?
+  notes           String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  followUps       FollowUp[]
+  assignedUser    User?      @relation(fields: [assignedTo], references: [id])
+
+  @@index([status])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+model FollowUp {
+  id             String   @id @default(uuid())
+  leadId         String
+  followUpDate   DateTime
+  remarks        String?
+  status         String   @default("PENDING")
+  createdAt      DateTime @default(now())
+
+  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([followUpDate])
+  @@index([status])
+  @@map("follow_ups")
 }

@@ -1358,3 +1358,119 @@ export const practiceSheetsApi = {
     curriculum?: string[];
   }) => api.post<GeneratedPracticeSheet>('/practice-sheets/generate', data),
 };
+
+// ─── CRM ────────────────────────────────────────────────
+
+export type LeadStatus = 'NEW' | 'CONTACTED' | 'FOLLOW_UP' | 'INTERESTED' | 'ENROLLED' | 'REJECTED';
+export type FollowUpStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED';
+
+export interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  courseInterested: string;
+  status: LeadStatus;
+  source: string | null;
+  assignedTo: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assignedUser?: { id: string; name: string; email?: string } | null;
+  followUps?: FollowUp[];
+}
+
+export interface FollowUp {
+  id: string;
+  leadId: string;
+  followUpDate: string;
+  remarks: string | null;
+  status: FollowUpStatus;
+  createdAt: string;
+  lead?: { id: string; name: string; email: string; phone: string; status: LeadStatus };
+}
+
+export interface CrmDashboardData {
+  totalLeads: number;
+  newLeads: number;
+  enrolledLeads: number;
+  followUpsToday: number;
+  conversionRate: number;
+  recentLeads: Lead[];
+  statusChart: { status: string; count: number }[];
+}
+
+export interface CrmLeadsResponse {
+  leads: Lead[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface Counsellor {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export const crmApi = {
+  getDashboard: () => api.get<CrmDashboardData>('/crm/dashboard'),
+
+  getLeads: (params?: { search?: string; status?: string; page?: number; limit?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.search) query.set('search', params.search);
+    if (params?.status && params.status !== 'ALL') query.set('status', params.status);
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.limit) query.set('limit', String(params.limit));
+    const qs = query.toString();
+    return api.get<CrmLeadsResponse>(`/crm/leads${qs ? `?${qs}` : ''}`);
+  },
+
+  getLeadById: (id: string) => api.get<Lead>(`/crm/leads/${id}`),
+
+  createLead: (data: {
+    name: string;
+    email: string;
+    phone: string;
+    courseInterested: string;
+    status?: LeadStatus;
+    source?: string;
+    assignedTo?: string;
+    notes?: string;
+  }) => api.post<Lead>('/crm/leads', data),
+
+  updateLead: (id: string, data: Partial<{
+    name: string;
+    email: string;
+    phone: string;
+    courseInterested: string;
+    status: LeadStatus;
+    source: string;
+    assignedTo: string | null;
+    notes: string;
+  }>) => api.put<Lead>(`/crm/leads/${id}`, data),
+
+  deleteLead: (id: string) => api.delete<{ message: string }>(`/crm/leads/${id}`),
+
+  getFollowUps: (params?: { leadId?: string; status?: string; upcoming?: boolean }) => {
+    const query = new URLSearchParams();
+    if (params?.leadId) query.set('leadId', params.leadId);
+    if (params?.status && params.status !== 'ALL') query.set('status', params.status);
+    if (params?.upcoming) query.set('upcoming', 'true');
+    const qs = query.toString();
+    return api.get<FollowUp[]>(`/crm/follow-ups${qs ? `?${qs}` : ''}`);
+  },
+
+  createFollowUp: (data: { leadId: string; followUpDate: string; remarks?: string }) =>
+    api.post<FollowUp>('/crm/follow-ups', data),
+
+  updateFollowUp: (id: string, data: Partial<{ followUpDate: string; remarks: string; status: FollowUpStatus }>) =>
+    api.put<FollowUp>(`/crm/follow-ups/${id}`, data),
+
+  deleteFollowUp: (id: string) => api.delete<{ message: string }>(`/crm/follow-ups/${id}`),
+
+  getCounsellors: () => api.get<Counsellor[]>('/crm/counsellors'),
+};

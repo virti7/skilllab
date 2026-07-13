@@ -23,6 +23,8 @@ import studentRoutes from './routes/student.routes.js';
 import practiceSheetsRoutes from './routes/practiceSheets.routes.js';
 import codingRoutes from './routes/coding.routes.js';
 import compilerRoutes from './routes/compiler.routes.js';
+import crmRoutes from './routes/crm.routes.js';
+import { seedSuperAdmin } from './seed.js';
 
 const app = express();
 const PORT = parseInt(process.env.PORT, 10) || 5000;
@@ -159,6 +161,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/coding', codingRoutes);
 app.use('/api/compiler', compilerRoutes);
+app.use('/api/crm', crmRoutes);
 app.use('/api/practice-sheets', practiceSheetsRoutes);
 
 // 404 handler - must be after all routes
@@ -176,6 +179,7 @@ async function startServer() {
   const dbConnected = await connectDatabase();
   if (dbConnected) {
     logger.info('Startup complete — database connection verified');
+    await seedSuperAdmin();
   } else {
     logger.error('Startup complete — database connection FAILED. Requests will return errors until database is reachable.');
   }

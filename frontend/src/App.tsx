@@ -49,6 +49,12 @@ import StudentCodingAnalytics from './pages/student/StudentCodingAnalytics';
 import StudentCodingHistory from './pages/student/StudentCodingHistory';
 import AdminCodingTestAnalytics from './pages/admin/AdminCodingTestAnalytics';
 
+// CRM
+import CrmDashboard from './pages/admin/CrmDashboard';
+import CrmLeads from './pages/admin/CrmLeads';
+import CrmLeadDetails from './pages/admin/CrmLeadDetails';
+import CrmFollowUps from './pages/admin/CrmFollowUps';
+
 const queryClient = new QueryClient();
 
 function SA({ children }: { children: React.ReactNode }) {
@@ -59,6 +65,9 @@ function Admin({ children }: { children: React.ReactNode }) {
 }
 function Stu({ children }: { children: React.ReactNode }) {
   return <ProtectedRoute allowedRoles={['student']}>{children}</ProtectedRoute>;
+}
+function CrmRoute({ children }: { children: React.ReactNode }) {
+  return <ProtectedRoute allowedRoles={['admin', 'super_admin']}>{children}</ProtectedRoute>;
 }
 
 function SplashGate({ children }: { children: React.ReactNode }) {
@@ -112,6 +121,18 @@ const App = () => (
               <Route path='/admin/coding' element={<Admin><CodingQuestions /></Admin>} />
               <Route path='/admin/coding/tests' element={<Admin><CodingTests /></Admin>} />
               <Route path='/admin/coding/test/:testId/analytics' element={<Admin><AdminCodingTestAnalytics /></Admin>} />
+
+              {/* CRM - Admin */}
+              <Route path='/admin/crm' element={<CrmRoute><CrmDashboard /></CrmRoute>} />
+              <Route path='/admin/crm/leads' element={<CrmRoute><CrmLeads /></CrmRoute>} />
+              <Route path='/admin/crm/leads/:id' element={<CrmRoute><CrmLeadDetails /></CrmRoute>} />
+              <Route path='/admin/crm/follow-ups' element={<CrmRoute><CrmFollowUps /></CrmRoute>} />
+
+              {/* CRM - Super Admin */}
+              <Route path='/super-admin/crm' element={<CrmRoute><CrmDashboard /></CrmRoute>} />
+              <Route path='/super-admin/crm/leads' element={<CrmRoute><CrmLeads /></CrmRoute>} />
+              <Route path='/super-admin/crm/leads/:id' element={<CrmRoute><CrmLeadDetails /></CrmRoute>} />
+              <Route path='/super-admin/crm/follow-ups' element={<CrmRoute><CrmFollowUps /></CrmRoute>} />
 
               {/* Student */}
               <Route path='/student' element={<Stu><StudentDashboard /></Stu>} />

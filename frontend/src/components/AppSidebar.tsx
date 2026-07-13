@@ -17,6 +17,8 @@ import {
   History,
   FileText,
   X,
+  Contact,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -45,6 +47,14 @@ const menusByRole: Record<UserRole, MenuSection[]> = {
         { title: "Subscriptions", icon: CreditCard, path: "/super-admin/subscriptions" },
       ],
     },
+    {
+      title: "CRM",
+      items: [
+        { title: "Dashboard", icon: LayoutDashboard, path: "/super-admin/crm" },
+        { title: "Leads", icon: Contact, path: "/super-admin/crm/leads" },
+        { title: "Follow-ups", icon: CalendarClock, path: "/super-admin/crm/follow-ups" },
+      ],
+    },
   ],
   admin: [
     {
@@ -56,6 +66,14 @@ const menusByRole: Record<UserRole, MenuSection[]> = {
         { title: "Tests", icon: BookOpen, path: "/admin/tests" },
         { title: "Coding Lab", icon: Code2, path: "/admin/coding" },
         { title: "Practice Sheets", icon: FileText, path: "/admin/practice-sheets" }
+      ],
+    },
+    {
+      title: "CRM",
+      items: [
+        { title: "Dashboard", icon: LayoutDashboard, path: "/admin/crm" },
+        { title: "Leads", icon: Contact, path: "/admin/crm/leads" },
+        { title: "Follow-ups", icon: CalendarClock, path: "/admin/crm/follow-ups" },
       ],
     },
     {
