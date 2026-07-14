@@ -6,6 +6,7 @@ import {
   createLead,
   updateLead,
   deleteLead,
+  convertLead,
   getFollowUps,
   createFollowUp,
   updateFollowUp,
@@ -25,6 +26,7 @@ router.get('/leads/:id', getLeadById);
 router.post('/leads', createLead);
 router.put('/leads/:id', updateLead);
 router.delete('/leads/:id', deleteLead);
+router.post('/leads/:id/convert', convertLead);
 
 router.get('/follow-ups', getFollowUps);
 router.post('/follow-ups', createFollowUp);

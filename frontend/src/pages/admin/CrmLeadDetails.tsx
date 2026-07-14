@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { AppLayout } from "@/components/AppLayout";
-import { crmApi, Lead, Counsellor } from "@/lib/api";
+import { crmApi, Lead, Counsellor, Batch, batchApi, ConvertLeadResponse } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Loader2,
@@ -19,6 +19,8 @@ import {
   XCircle,
   Plus,
   Trash2,
+  Copy,
+  Key,
 } from "lucide-react";
 import {
   Dialog,
@@ -64,9 +66,16 @@ export default function CrmLeadDetails() {
 
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [convertForm, setConvertForm] = useState({ batchId: "", password: "", generateRandom: true });
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [converting, setConverting] = useState(false);
+  const [conversionResult, setConversionResult] = useState<ConvertLeadResponse | null>(null);
+
   useEffect(() => {
     if (id) loadLead();
     crmApi.getCounsellors().then(setCounsellors).catch(() => setCounsellors([]));
+    batchApi.getAdminBatches().then(setBatches).catch(() => setBatches([]));
   }, [id]);
 
   async function loadLead() {
@@ -113,14 +122,21 @@ export default function CrmLeadDetails() {
     }
   }
 
-  async function handleMarkEnrolled() {
+  async function handleConvertLead() {
     if (!id) return;
+    setConverting(true);
     try {
-      await crmApi.updateLead(id, { status: "ENROLLED" });
-      toast.success("Lead marked as enrolled");
+      const result = await crmApi.convertLead(id, {
+        batchId: convertForm.batchId || undefined,
+        password: convertForm.generateRandom ? undefined : convertForm.password || undefined,
+      });
+      setConversionResult(result);
+      toast.success("Student created successfully");
       loadLead();
-    } catch {
-      toast.error("Failed to update lead status");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to convert lead");
+    } finally {
+      setConverting(false);
     }
   }
 
@@ -225,15 +241,15 @@ export default function CrmLeadDetails() {
               <Calendar className="w-4 h-4" />
               Schedule Follow-up
             </motion.button>
-            {lead.status !== "ENROLLED" && (
+            {lead.status !== "ENROLLED" && lead.status !== "REJECTED" && (
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={handleMarkEnrolled}
+                onClick={() => setShowConvertDialog(true)}
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-5 py-2 rounded-xl text-sm font-medium shadow-lg shadow-green-500/25 hover:shadow-xl transition-all duration-200"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                Mark as Enrolled
+                Convert to Student
               </motion.button>
             )}
           </div>
@@ -516,6 +532,143 @@ export default function CrmLeadDetails() {
               Delete
             </button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Student Dialog */}
+      <Dialog open={showConvertDialog} onOpenChange={(open) => {
+        setShowConvertDialog(open);
+        if (!open) setConversionResult(null);
+      }}>
+        <DialogContent className="sm:max-w-[480px]">
+          {conversionResult ? (
+            <div className="py-4">
+              <div className="text-center mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle2 className="w-7 h-7 text-green-600" />
+                </div>
+                <h3 className="text-lg font-bold text-foreground">Student Account Created</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  The student can now log in with these credentials.
+                </p>
+              </div>
+              <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Name</p>
+                  <p className="text-sm font-medium text-foreground">{conversionResult.user.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium text-foreground">{conversionResult.user.email}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Password</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-sm font-mono font-medium text-foreground bg-background px-2 py-1 rounded-lg border border-border flex-1">
+                      {conversionResult.generatedPassword}
+                    </code>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(conversionResult.generatedPassword);
+                        toast.success("Password copied to clipboard");
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-background text-muted-foreground hover:text-foreground transition-colors"
+                      title="Copy password"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {conversionResult.batchId && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Batch</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {batches.find((b) => b.id === conversionResult.batchId)?.name || "Assigned"}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="mt-4">
+                <button
+                  onClick={() => {
+                    setShowConvertDialog(false);
+                    setConversionResult(null);
+                  }}
+                  className="bg-primary text-primary-foreground px-5 py-2 rounded-xl text-sm font-medium hover:bg-primary/90 transition-all duration-200"
+                >
+                  Done
+                </button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Convert to Student</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="bg-muted/50 rounded-xl p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Lead</p>
+                  <p className="text-sm font-medium text-foreground">{lead.name}</p>
+                  <p className="text-xs text-muted-foreground">{lead.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Assign to Batch (optional)</label>
+                  <select
+                    value={convertForm.batchId}
+                    onChange={(e) => setConvertForm({ ...convertForm, batchId: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:border-primary/60"
+                  >
+                    <option value="">No batch</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}{b.inviteCode ? ` (${b.inviteCode})` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={convertForm.generateRandom}
+                      onChange={(e) => setConvertForm({ ...convertForm, generateRandom: e.target.checked, password: "" })}
+                      className="rounded border-border"
+                    />
+                    Generate random password
+                  </label>
+                </div>
+                {!convertForm.generateRandom && (
+                  <div>
+                    <label className="text-sm font-medium text-foreground">Password</label>
+                    <div className="relative mt-1">
+                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={convertForm.password}
+                        onChange={(e) => setConvertForm({ ...convertForm, password: e.target.value })}
+                        placeholder="Min 8 characters"
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-background border border-border text-foreground text-sm focus:outline-none focus:border-primary/60"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <button
+                  onClick={() => setShowConvertDialog(false)}
+                  className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConvertLead}
+                  disabled={converting}
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-5 py-2 rounded-xl text-sm font-medium shadow-lg shadow-green-500/25 hover:shadow-xl disabled:opacity-50 transition-all duration-200"
+                >
+                  {converting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Convert to Student
+                </button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>

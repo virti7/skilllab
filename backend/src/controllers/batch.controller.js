@@ -98,6 +98,24 @@ export async function joinBatch(req, res, next) {
       });
     }
 
+    try {
+      const matchedLead = await prisma.lead.findFirst({
+        where: {
+          email: req.user.email,
+          status: { notIn: ['ENROLLED', 'REJECTED'] },
+        },
+      });
+      if (matchedLead) {
+        await prisma.lead.update({
+          where: { id: matchedLead.id },
+          data: { status: 'ENROLLED' },
+        });
+        logger.info('joinBatch: CRM lead auto-enrolled', { leadId: matchedLead.id, userId });
+      }
+    } catch (leadErr) {
+      logger.warn('joinBatch: CRM sync failed (non-blocking)', { userId, error: leadErr.message });
+    }
+
     logger.info('joinBatch: success', { userId, batchId: batch.id, batchName: batch.name });
 
     return sendSuccess(res, { message: 'Joined batch successfully', batch: { id: batch.id, name: batch.name, joinedAt: new Date().toISOString() } });

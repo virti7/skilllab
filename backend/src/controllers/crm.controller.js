@@ -2,6 +2,8 @@ import { prisma } from '../utils/prisma.js';
 import { sendSuccess, sendError } from '../utils/response.js';
 import logger from '../utils/logger.js';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const leadSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -21,13 +23,29 @@ const followUpSchema = z.object({
   status: z.enum(['PENDING', 'COMPLETED', 'CANCELLED']).optional(),
 });
 
+const convertLeadSchema = z.object({
+  batchId: z.string().uuid().optional(),
+  password: z.string().min(8).optional(),
+});
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export async function getDashboard(req, res, next) {
   try {
     const whereClause = req.user.role === 'ADMIN'
       ? { assignedUser: { instituteId: req.user.instituteId } }
       : {};
 
-    const [totalLeads, newLeads, enrolledLeads, followUpsToday, recentLeads, statusCounts] = await Promise.all([
+    const followUpLeadWhere = whereClause.assignedUser
+      ? { assignedUser: { instituteId: req.user.instituteId } }
+      : undefined;
+
+    const [
+      totalLeads, newLeads, enrolledLeads, followUpsToday,
+      recentLeads, statusCounts,
+      totalStudents, totalInstitutes, totalUsers,
+      monthlyLeadsRaw, followUpStatusCounts,
+    ] = await Promise.all([
       prisma.lead.count({ where: whereClause }),
       prisma.lead.count({ where: { ...whereClause, status: 'NEW' } }),
       prisma.lead.count({ where: { ...whereClause, status: 'ENROLLED' } }),
@@ -38,7 +56,7 @@ export async function getDashboard(req, res, next) {
             gte: new Date(new Date().setHours(0, 0, 0, 0)),
             lt: new Date(new Date().setHours(23, 59, 59, 999)),
           },
-          lead: whereClause.assignedUser ? { assignedUser: { instituteId: req.user.instituteId } } : undefined,
+          lead: followUpLeadWhere,
         },
       }),
       prisma.lead.findMany({
@@ -52,6 +70,21 @@ export async function getDashboard(req, res, next) {
         where: whereClause,
         _count: true,
       }),
+      prisma.user.count({ where: { role: 'STUDENT' } }),
+      prisma.institute.count(),
+      prisma.user.count(),
+      prisma.$queryRaw`
+        SELECT TO_CHAR("createdAt", 'YYYY-MM') as month, COUNT(*)::int as count
+        FROM leads
+        WHERE "createdAt" >= NOW() - INTERVAL '6 months'
+        GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
+        ORDER BY month ASC
+      `,
+      prisma.followUp.groupBy({
+        by: ['status'],
+        where: followUpLeadWhere ? { lead: followUpLeadWhere } : {},
+        _count: true,
+      }),
     ]);
 
     const conversionRate = totalLeads > 0 ? Math.round((enrolledLeads / totalLeads) * 100) : 0;
@@ -61,14 +94,29 @@ export async function getDashboard(req, res, next) {
       return { status, count: found ? found._count : 0 };
     });
 
+    const monthlyLeads = monthlyLeadsRaw.map((row) => ({
+      month: MONTH_NAMES[parseInt(row.month.split('-')[1], 10) - 1] || row.month,
+      count: row.count,
+    }));
+
+    const followUpStatusChart = ['PENDING', 'COMPLETED', 'CANCELLED'].map((status) => {
+      const found = followUpStatusCounts.find((s) => s.status === status);
+      return { status, count: found ? found._count : 0 };
+    });
+
     return sendSuccess(res, {
       totalLeads,
       newLeads,
       enrolledLeads,
       followUpsToday,
       conversionRate,
+      totalStudents,
+      totalInstitutes,
+      totalUsers,
       recentLeads,
       statusChart,
+      monthlyLeads,
+      followUpStatusChart,
     });
   } catch (err) {
     next(err);
@@ -217,6 +265,97 @@ export async function deleteLead(req, res, next) {
     logger.info('Lead deleted', { leadId: id, deletedBy: req.user.id });
     return sendSuccess(res, { message: 'Lead deleted successfully' });
   } catch (err) {
+    next(err);
+  }
+}
+
+export async function convertLead(req, res, next) {
+  try {
+    const { id } = req.params;
+    const parsed = convertLeadSchema.parse(req.body);
+
+    const lead = await prisma.lead.findUnique({ where: { id } });
+    if (!lead) {
+      return sendError(res, 'Lead not found', 404);
+    }
+
+    if (lead.status === 'ENROLLED') {
+      return sendError(res, 'Lead is already enrolled', 400);
+    }
+
+    if (lead.status === 'REJECTED') {
+      return sendError(res, 'Cannot convert a rejected lead', 400);
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email: lead.email } });
+    if (existingUser) {
+      return sendError(res, 'A user with this email already exists', 409);
+    }
+
+    const rawPassword = parsed.password || crypto.randomBytes(12).toString('hex');
+    const hashedPassword = await bcrypt.hash(rawPassword, 12);
+
+    const result = await prisma.$transaction(async (tx) => {
+      let instituteId = req.user.instituteId;
+
+      if (!instituteId) {
+        const institute = await tx.institute.create({
+          data: { name: `${lead.name} Institute` },
+        });
+        instituteId = institute.id;
+      }
+
+      const user = await tx.user.create({
+        data: {
+          name: lead.name,
+          email: lead.email,
+          password: hashedPassword,
+          role: 'STUDENT',
+          instituteId,
+        },
+      });
+
+      await tx.lead.update({
+        where: { id },
+        data: { status: 'ENROLLED' },
+      });
+
+      if (parsed.batchId) {
+        const batch = await tx.batch.findUnique({ where: { id: parsed.batchId } });
+        if (batch) {
+          await tx.batchStudent.create({
+            data: { batchId: batch.id, userId: user.id },
+          });
+
+          if (instituteId !== batch.instituteId) {
+            await tx.user.update({
+              where: { id: user.id },
+              data: { instituteId: batch.instituteId },
+            });
+          }
+        }
+      }
+
+      return { user: { id: user.id, name: user.name, email: user.email, role: user.role } };
+    });
+
+    logger.info('Lead converted to student', {
+      leadId: id,
+      userId: result.user.id,
+      batchId: parsed.batchId || null,
+      convertedBy: req.user.id,
+    });
+
+    return sendSuccess(res, {
+      user: result.user,
+      lead: { id: lead.id, status: 'ENROLLED' },
+      batchId: parsed.batchId || null,
+      generatedPassword: rawPassword,
+    }, 'Lead converted to student successfully');
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return sendError(res, 'Validation failed', 400, err.errors.map(e => ({ field: e.path.join('.'), message: e.message })));
+    }
     next(err);
   }
 }

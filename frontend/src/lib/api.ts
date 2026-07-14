@@ -1495,8 +1495,13 @@ export interface CrmDashboardData {
   enrolledLeads: number;
   followUpsToday: number;
   conversionRate: number;
+  totalStudents: number;
+  totalInstitutes: number;
+  totalUsers: number;
   recentLeads: Lead[];
   statusChart: { status: string; count: number }[];
+  monthlyLeads: { month: string; count: number }[];
+  followUpStatusChart: { status: string; count: number }[];
 }
 
 export interface CrmLeadsResponse {
@@ -1513,6 +1518,13 @@ export interface Counsellor {
   id: string;
   name: string;
   email: string;
+}
+
+export interface ConvertLeadResponse {
+  user: { id: string; name: string; email: string; role: string };
+  lead: { id: string; status: string };
+  batchId: string | null;
+  generatedPassword: string;
 }
 
 export const crmApi = {
@@ -1553,6 +1565,9 @@ export const crmApi = {
   }>) => api.put<Lead>(`/crm/leads/${id}`, data),
 
   deleteLead: (id: string) => api.delete<{ message: string }>(`/crm/leads/${id}`),
+
+  convertLead: (leadId: string, data: { batchId?: string; password?: string }) =>
+    api.post<ConvertLeadResponse>(`/crm/leads/${leadId}/convert`, data),
 
   getFollowUps: (params?: { leadId?: string; status?: string; upcoming?: boolean }) => {
     const query = new URLSearchParams();

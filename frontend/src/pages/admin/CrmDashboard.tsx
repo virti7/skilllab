@@ -11,8 +11,11 @@ import {
   PhoneCall,
   GraduationCap,
   TrendingUp,
-  BarChart3,
+  Building2,
+  UserCheck,
   Sparkles,
+  Plus,
+  BarChart3,
 } from "lucide-react";
 import {
   BarChart,
@@ -46,6 +49,12 @@ const STATUS_COLORS: Record<string, string> = {
   REJECTED: "#ef4444",
 };
 
+const FOLLOW_UP_COLORS: Record<string, string> = {
+  PENDING: "#eab308",
+  COMPLETED: "#22c55e",
+  CANCELLED: "#94a3b8",
+};
+
 function SkeletonStatCard() {
   return (
     <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
@@ -55,6 +64,24 @@ function SkeletonStatCard() {
       </div>
       <div className="h-8 bg-muted rounded w-20 mb-2" />
       <div className="h-3 bg-muted rounded w-28" />
+    </div>
+  );
+}
+
+function SkeletonChart() {
+  return (
+    <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
+      <div className="h-5 bg-muted rounded w-40 mb-4" />
+      <div className="h-64 bg-muted/50 rounded-xl" />
+    </div>
+  );
+}
+
+function EmptyChart({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+      <BarChart3 className="w-10 h-10 mb-3 opacity-40" />
+      <p className="text-sm">{message}</p>
     </div>
   );
 }
@@ -74,7 +101,7 @@ export default function CrmDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const statsCards = data
+  const crmStats = data
     ? [
         {
           icon: Users,
@@ -109,6 +136,31 @@ export default function CrmDashboard() {
       ]
     : [];
 
+  const platformStats = data
+    ? [
+        {
+          icon: GraduationCap,
+          label: "Total Students",
+          value: String(data.totalStudents),
+          gradient: "from-emerald-500/20 to-transparent",
+        },
+        {
+          icon: Building2,
+          label: "Institutes",
+          value: String(data.totalInstitutes),
+          gradient: "from-violet-500/20 to-transparent",
+        },
+        {
+          icon: UserCheck,
+          label: "Total Users",
+          value: String(data.totalUsers),
+          gradient: "from-amber-500/20 to-transparent",
+        },
+      ]
+    : [];
+
+  const isEmpty = data && data.totalLeads === 0;
+
   return (
     <AppLayout>
       <motion.div
@@ -130,6 +182,17 @@ export default function CrmDashboard() {
               Track leads, follow-ups, and conversions at a glance.
             </p>
           </div>
+          {!loading && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate(`${basePath}/leads`)}
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-primary/25 hover:shadow-xl transition-all duration-200"
+            >
+              <Plus className="w-4 h-4" />
+              Add Lead
+            </motion.button>
+          )}
         </motion.div>
 
         {loading ? (
@@ -139,47 +202,106 @@ export default function CrmDashboard() {
                 <SkeletonStatCard key={i} />
               ))}
             </div>
-            <div className="bg-card rounded-2xl border border-border p-5 animate-pulse">
-              <div className="h-64 bg-muted rounded" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <SkeletonStatCard key={i} />
+              ))}
             </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SkeletonChart />
+              <SkeletonChart />
+            </div>
+            <SkeletonChart />
           </div>
+        ) : isEmpty ? (
+          <motion.div variants={itemVariants} className="bg-card rounded-2xl border border-border p-12 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Users className="w-8 h-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">No leads yet</h3>
+            <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+              Create your first lead to start tracking your admissions pipeline.
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => navigate(`${basePath}/leads`)}
+              className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-medium shadow-lg shadow-primary/25"
+            >
+              <Plus className="w-4 h-4" />
+              Create First Lead
+            </motion.button>
+          </motion.div>
         ) : (
           <>
-            <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              {statsCards.map((card) => {
-                const Icon = card.icon;
-                return (
-                  <motion.div
-                    key={card.label}
-                    whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                    className="group relative overflow-hidden bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300"
-                  >
-                    <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                    <div className="relative">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</p>
-                        <motion.div
-                          whileHover={{ scale: 1.1, rotate: 5 }}
-                          className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300"
-                        >
-                          <Icon className="w-5 h-5 text-primary" />
-                        </motion.div>
+            <motion.div variants={itemVariants}>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">CRM Pipeline</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                {crmStats.map((card) => {
+                  const Icon = card.icon;
+                  return (
+                    <motion.div
+                      key={card.label}
+                      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                      className="group relative overflow-hidden bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300"
+                    >
+                      <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</p>
+                          <motion.div
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300"
+                          >
+                            <Icon className="w-5 h-5 text-primary" />
+                          </motion.div>
+                        </div>
+                        <p className="text-2xl font-bold text-foreground tracking-tight">{card.value}</p>
                       </div>
-                      <p className="text-2xl font-bold text-foreground tracking-tight">{card.value}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
+                    </motion.div>
+                  );
+                })}
+              </div>
             </motion.div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <motion.div variants={itemVariants} className="bg-card rounded-2xl p-6 border border-border shadow-sm hover:shadow-md transition-all duration-300">
-                <h3 className="font-semibold text-foreground mb-4">Lead Status Distribution</h3>
-                {data && data.statusChart.some((s) => s.count > 0) ? (
+            <motion.div variants={itemVariants}>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Platform Overview</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {platformStats.map((card) => {
+                  const Icon = card.icon;
+                  return (
+                    <motion.div
+                      key={card.label}
+                      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                      className="group relative overflow-hidden bg-card rounded-2xl border border-border p-5 shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-300"
+                    >
+                      <div className={`absolute inset-0 bg-gradient-to-br ${card.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                      <div className="relative">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{card.label}</p>
+                          <motion.div
+                            whileHover={{ scale: 1.1, rotate: 5 }}
+                            className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors duration-300"
+                          >
+                            <Icon className="w-5 h-5 text-primary" />
+                          </motion.div>
+                        </div>
+                        <p className="text-2xl font-bold text-foreground tracking-tight">{card.value}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </motion.div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <motion.div variants={itemVariants} className="lg:col-span-2 bg-card rounded-2xl p-6 border border-border shadow-sm hover:shadow-md transition-all duration-300">
+                <h3 className="font-semibold text-foreground mb-4">Monthly Leads Trend</h3>
+                {data.monthlyLeads.length > 0 ? (
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={data.statusChart}>
+                    <BarChart data={data.monthlyLeads}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                      <XAxis dataKey="status" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
                       <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip
                         contentStyle={{
@@ -189,27 +311,21 @@ export default function CrmDashboard() {
                           fontSize: 12,
                         }}
                       />
-                      <Bar dataKey="count" name="Leads" radius={[6, 6, 0, 0]} maxBarSize={50}>
-                        {data.statusChart.map((entry) => (
-                          <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || "#94a3b8"} />
-                        ))}
-                      </Bar>
+                      <Bar dataKey="count" name="Leads" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} maxBarSize={50} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-                    No lead data available yet.
-                  </div>
+                  <EmptyChart message="No monthly data yet" />
                 )}
               </motion.div>
 
               <motion.div variants={itemVariants} className="bg-card rounded-2xl p-6 border border-border shadow-sm hover:shadow-md transition-all duration-300">
-                <h3 className="font-semibold text-foreground mb-4">Status Breakdown</h3>
-                {data && data.statusChart.some((s) => s.count > 0) ? (
+                <h3 className="font-semibold text-foreground mb-4">Follow-up Status</h3>
+                {data.followUpStatusChart.some((s) => s.count > 0) ? (
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
                       <Pie
-                        data={data.statusChart.filter((s) => s.count > 0)}
+                        data={data.followUpStatusChart.filter((s) => s.count > 0)}
                         cx="50%"
                         cy="50%"
                         outerRadius={90}
@@ -218,22 +334,48 @@ export default function CrmDashboard() {
                         nameKey="status"
                         label={({ status, count }) => `${status}: ${count}`}
                       >
-                        {data.statusChart
+                        {data.followUpStatusChart
                           .filter((s) => s.count > 0)
                           .map((entry) => (
-                            <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || "#94a3b8"} />
+                            <Cell key={entry.status} fill={FOLLOW_UP_COLORS[entry.status] || "#94a3b8"} />
                           ))}
                       </Pie>
                       <Tooltip />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-                    No lead data available yet.
-                  </div>
+                  <EmptyChart message="No follow-ups yet" />
                 )}
               </motion.div>
             </div>
+
+            <motion.div variants={itemVariants} className="bg-card rounded-2xl p-6 border border-border shadow-sm hover:shadow-md transition-all duration-300">
+              <h3 className="font-semibold text-foreground mb-4">Lead Status Distribution</h3>
+              {data.statusChart.some((s) => s.count > 0) ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={data.statusChart}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="status" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{
+                        background: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "0.75rem",
+                        fontSize: 12,
+                      }}
+                    />
+                    <Bar dataKey="count" name="Leads" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                      {data.statusChart.map((entry) => (
+                        <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || "#94a3b8"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <EmptyChart message="No lead data available yet" />
+              )}
+            </motion.div>
 
             <motion.div variants={itemVariants}>
               <div className="flex items-center justify-between mb-4">
@@ -272,7 +414,7 @@ export default function CrmDashboard() {
                             <td className="px-5 py-3">
                               <StatusBadge status={lead.status} />
                             </td>
-                            <td className="px-5 py-3 text-muted-foreground">{lead.assignedUser?.name || "—"}</td>
+                            <td className="px-5 py-3 text-muted-foreground">{lead.assignedUser?.name || "\u2014"}</td>
                             <td className="px-5 py-3 text-muted-foreground">
                               {new Date(lead.createdAt).toLocaleDateString()}
                             </td>
@@ -281,7 +423,7 @@ export default function CrmDashboard() {
                         {(!data?.recentLeads || data.recentLeads.length === 0) && (
                           <tr>
                             <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">
-                              No leads yet. Add your first lead to get started.
+                              No recent leads.
                             </td>
                           </tr>
                         )}
